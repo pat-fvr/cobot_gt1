@@ -1,0 +1,23 @@
+# Soft gripper neumático, accionado por DO1: 0 = abierto, 1 = cerrado.
+kind = "digital_outputs"
+description = "Soft gripper (configuración inicial)"
+
+# POR MEDIR: punta de los dedos cerrados respecto de la brida, y masa / centro de gravedad del gripper.
+# Se cargan en el robot al iniciar cada programa que lo use: un valor equivocado afecta la detección de colisiones.
+[tcp]
+position_mm = [0.0, 0.0, 180.0]
+rotation_vector_deg = [0.0, 0.0, 0.0]
+
+[payload]
+mass_kg = 1.0
+center_of_gravity_mm = [0.0, 0.0, 60.0]
+
+[actions.grip]
+description = "Cerrar los dedos"
+outputs = [{ port = "standard", number = 1, value = true }]
+settle_s = 0.4
+
+[actions.release]
+description = "Abrir los dedos"
+outputs = [{ port = "standard", number = 1, value = false }]
+settle_s = 0.4

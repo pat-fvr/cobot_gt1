@@ -1,0 +1,18 @@
+# Basler Scout scA1390 (monocromática, 1392 x 1040, GigE) a través del SDK MVS.
+kind = "mvs"
+camera_id = "basler_scA1390"
+calibration_method = "camera_model"
+ip = "150.0.24.20"
+
+# POR COMPLETAR: si no coinciden, al conectar el programa se detiene y muestra lo que informa la cámara.
+expected_model = "POR_COMPLETAR"
+expected_serial = "POR_COMPLETAR"
+
+# La primera imagen tras iniciar la adquisición tarda ~1,1 s con la Scout.
+first_frame_timeout_ms = 5000
+frame_timeout_ms = 1000
+max_incomplete_frames = 10
+
+# Nodos GenICam que se fijan al conectar (vacío = los que tenga la cámara). Ejemplo:
+# genicam_nodes = { ExposureAuto = "Off", ExposureTimeAbs = 20000.0, GainRaw = 300 }
+genicam_nodes = {}

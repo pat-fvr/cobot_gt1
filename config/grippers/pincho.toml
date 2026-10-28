@@ -1,0 +1,12 @@
+# Pincho recto de calibración: su punta toca las esquinas del tablero. Sin acciones.
+kind = "fixed"
+description = "Pincho de calibración"
+
+# POR MEDIR: en el 171 se usó un pincho de 129 mm en Z de la brida.
+[tcp]
+position_mm = [0.0, 0.0, 129.0]
+rotation_vector_deg = [0.0, 0.0, 0.0]
+
+[payload]
+mass_kg = 0.2
+center_of_gravity_mm = [0.0, 0.0, 60.0]

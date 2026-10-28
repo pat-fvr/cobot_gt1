@@ -1,0 +1,17 @@
+# Cómo está armado el banco de pruebas. Si se mueve la mesa, la cámara o una zona, se cambia solo este archivo.
+# Coordenadas en mm en el sistema de la base del robot.
+
+# Superficie de la mesa. Valor medido en el banco del 171 (cobot_iqf, octubre 2026): confirmar
+# con la calibración (la herramienta calibrate informa la altura del tablero).
+table_z_mm = -110.0
+
+# Zonas: polígonos (X, Y) en orden. POR DEFINIR en el banco: estos valores reparten el campo visual
+# de la cámara del 171 (~700 x 540 mm centrado en X=520, Y=470) y sirven solo para empezar.
+[zones.pick]
+polygon_mm = [[280.0, 260.0], [520.0, 260.0], [520.0, 680.0], [280.0, 680.0]]
+
+[zones.tray]
+polygon_mm = [[540.0, 260.0], [760.0, 260.0], [760.0, 470.0], [540.0, 470.0]]
+
+[zones.flip_landing]
+polygon_mm = [[540.0, 490.0], [760.0, 490.0], [760.0, 680.0], [540.0, 680.0]]

@@ -1,0 +1,58 @@
+[project]
+name = "gt1"
+version = "0.1.0"
+description = "Piloto de carga robotizada de pechuga entera en bandeja (GT1, Proyecto 171 - Agrosuper)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2.0",
+    "opencv-python>=4.10",
+    "pydantic>=2.8",
+    "tomli-w>=1.0",
+    "ur-rtde>=1.6",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.380",
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gt1"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "gt1_test", "gt1_tools", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF", "PL", "PTH", "C4", "RET"]
+ignore = [
+    "PLR0913",  # constructores que reciben su configuración y sus dependencias
+    "PLR2004",  # números en tests y geometría
+    "SIM108",   # un if/else de tres casos se lee mejor que un ternario anidado
+    "RUF001",   # textos en español (º, ×, …)
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004"]
+
+[tool.pyright]
+include = ["src", "gt1_test", "gt1_tools", "tests"]
+extraPaths = ["src"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

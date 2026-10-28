@@ -1,0 +1,16 @@
+# UR10e del banco, controlado por RTDE (ur_rtde). La consola debe estar en modo remoto para mover el robot.
+kind = "ur_rtde"
+ip = "150.0.24.10"
+
+linear_accel_mm_s2 = 1200.0
+joint_accel_deg_s2 = 120.0
+stop_decel_mm_s2 = 2000.0
+stop_decel_deg_s2 = 115.0
+
+# Cada cuánto se revisa un movimiento en curso (y la tecla de parada).
+poll_period_s = 0.02
+
+# Tolerancias al leer de vuelta la herramienta cargada en el controlador.
+tool_position_tol_mm = 0.5
+tool_rotation_tol_deg = 0.5
+payload_tol_kg = 0.05

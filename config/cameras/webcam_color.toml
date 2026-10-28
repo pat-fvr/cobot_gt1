@@ -1,0 +1,8 @@
+# Webcam USB color, para probar el clasificador de cara con color (hsv).
+kind = "webcam"
+camera_id = "webcam_color"
+calibration_method = "camera_model"
+device_index = 0
+width_px = 1920
+height_px = 1080
+warmup_frames = 10

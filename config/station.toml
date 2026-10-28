@@ -1,0 +1,6 @@
+# Hardware montado en el banco según la última configuración confirmada.
+# Lo actualizan los programas cuando el operador confirma un cambio; no hace falta editarlo a mano.
+robot = "UR10e"
+camera = "basler_scA1390"
+gripper = "soft_2dedos"
+tray = "bandeja_pet"

@@ -1,0 +1,7 @@
+# Cara por histograma, comparado con referencias de piel y de hueso de references/<camera_id>/.
+# Si se cambia color_space o bins_per_channel hay que regenerar las referencias.
+kind = "histogram"
+color_space = "gray"      # gray para la Basler mono; hsv para una cámara color
+bins_per_channel = 32
+mask_erosion_px = 8       # se ignora el borde de la pieza (mezcla pieza y fondo)
+min_margin = 0.05         # bajo este margen la cara queda "incierto" y la pieza no se toma

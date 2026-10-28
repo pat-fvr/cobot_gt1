@@ -1,0 +1,4 @@
+# gripper_test: accionar cada acción del gripper sin mover el robot.
+[components]
+robot = "UR10e"
+gripper = "soft_2dedos"

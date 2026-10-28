@@ -1,0 +1,10 @@
+# calibrate: modelo de la lente y relación cámara-robot.
+[components]
+camera = "basler_scA1390"
+robot = "UR10e"
+gripper = "pincho"
+
+[settings]
+board = "charuco_a3"
+min_lens_views = 12          # vistas del tablero para calibrar la lente
+board_print_pixels_per_mm = 10.0

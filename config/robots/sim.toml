@@ -1,0 +1,4 @@
+# Robot simulado: llega al instante a cada objetivo. Para desarrollar sin el robot.
+kind = "sim"
+initial_tcp_mm = [520.0, 470.0, 400.0]
+initial_joints_deg = [99.0, -105.9, -138.1, -29.5, 89.2, 76.9]

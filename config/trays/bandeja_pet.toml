@@ -1,0 +1,7 @@
+# Bandeja PET transparente, 1 pechuga por bandeja. POR MEDIR (pedir ficha a Agrosuper).
+description = "Bandeja PET transparente"
+inner_length_mm = 230.0
+inner_width_mm = 170.0
+depth_mm = 50.0
+seal_flange_mm = 8.0
+min_clearance_to_flange_mm = 3.0

@@ -1,0 +1,6 @@
+# camera_viewer: imagen en vivo y captura de imágenes.
+[components]
+camera = "basler_scA1390"
+
+[settings]
+captures_dir = "captures"   # las capturas van a captures/<camera_id>/

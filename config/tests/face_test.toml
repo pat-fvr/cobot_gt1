@@ -1,0 +1,8 @@
+# face_test: ¿la cámara distingue piel de hueso?
+[components]
+camera = "basler_scA1390"
+piece_detector = "piece_background"
+face_classifier = "face_histogram"
+
+[settings]
+zone = "pick"

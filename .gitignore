@@ -1,0 +1,15 @@
+# Entorno y caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Datos generados en el banco (pesados; se respaldan aparte)
+runs/
+captures/
+references/*/samples/
+
+# Editor
+.vscode/*
+!.vscode/settings.json
