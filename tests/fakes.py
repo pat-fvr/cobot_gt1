@@ -3,29 +3,14 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
+from pathlib import Path
 
-import numpy as np
-from numpy.typing import ArrayLike
+import cv2
 
-from gt1.calibration import PixelProjector
 from gt1.domain import Frame
 from gt1.domain.frame import Image
-from gt1.geometry import FloatArray, as_points
 from gt1.hardware.camera import Camera
-
-
-class ScaleProjector(PixelProjector):
-    """Cámara ideal mirando la mesa de frente: 1 px = ``mm_per_px`` mm, sin distorsión."""
-
-    def __init__(self, mm_per_px: float) -> None:
-        self._mm_per_px = mm_per_px
-
-    def pixels_to_base(self, pixels_px: ArrayLike, z_mm: float) -> FloatArray:
-        xy = as_points(pixels_px, 2) * self._mm_per_px
-        return np.column_stack([xy, np.full(len(xy), z_mm)])
-
-    def base_to_pixels(self, points_mm: ArrayLike) -> FloatArray:
-        return as_points(points_mm, 3)[:, :2] / self._mm_per_px
 
 
 class StaticCamera(Camera):
@@ -51,3 +36,12 @@ class StaticCamera(Camera):
 
     def capture(self) -> Frame:
         return Frame(image=self._image.copy(), captured_at_s=time.time())
+
+
+def write_video(path: Path, images: Sequence[Image], fps: float) -> None:
+    """Video MJPG con estas imágenes (BGR, todas del mismo tamaño)."""
+    height, width = images[0].shape[:2]
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter.fourcc(*"MJPG"), fps, (width, height))
+    for image in images:
+        writer.write(image)
+    writer.release()

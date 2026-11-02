@@ -66,6 +66,35 @@ RobotConfig = Annotated[UrRtdeRobotConfig | SimRobotConfig, Field(discriminator=
 # ---------------------------------------------------------------------- cameras/
 
 
+class HomographyCalibrationConfig(StrictModel):
+    """Homografía plana calibrada con el robot (calibration/<camera_id>/homography.json)."""
+
+    method: Literal["homography"]
+
+
+class CameraModelCalibrationConfig(StrictModel):
+    """Modelo 3D de la cámara calibrado con el robot (calibration/<camera_id>/camera_model.json)."""
+
+    method: Literal["camera_model"]
+
+
+class NominalScaleCalibrationConfig(StrictModel):
+    """Escala aproximada, sin calibrar: solo para probar la percepción (no para mover el robot).
+
+    Los píxeles se pasan a mm multiplicando por ``mm_per_px``, en el sistema de
+    la imagen (origen arriba a la izquierda, Y hacia abajo).
+    """
+
+    method: Literal["nominal_scale"]
+    mm_per_px: float = Field(gt=0, description="mm de la mesa que cubre un píxel (medir un objeto conocido).")
+
+
+CameraCalibrationConfig = Annotated[
+    HomographyCalibrationConfig | CameraModelCalibrationConfig | NominalScaleCalibrationConfig,
+    Field(discriminator="method"),
+]
+
+
 class MvsCameraConfig(StrictModel):
     """Cámara GigE Vision a través del SDK MVS (probado con la Basler Scout scA1390)."""
 
@@ -73,9 +102,7 @@ class MvsCameraConfig(StrictModel):
     camera_id: str = Field(
         description="Cámara física: sus datos están en calibration/<camera_id>/ y references/<camera_id>/."
     )
-    calibration_method: CalibrationMethod = Field(
-        description="Calibración que se usa para pasar de píxeles a la base."
-    )
+    calibration: CameraCalibrationConfig = Field(description="Cómo se pasa de píxeles a mm.")
     ip: str = Field(description="IP de la cámara.")
     expected_model: str = Field(description="Modelo que debe informar la cámara al conectarse.")
     expected_serial: str = Field(description="Número de serie que debe informar la cámara al conectarse.")
@@ -98,12 +125,25 @@ class WebcamCameraConfig(StrictModel):
     camera_id: str = Field(
         description="Cámara física: sus datos están en calibration/<camera_id>/ y references/<camera_id>/."
     )
-    calibration_method: CalibrationMethod
-    device_index: int = Field(ge=0, description="Índice de la cámara para OpenCV (0 = la primera).")
-    width_px: int = Field(gt=0)
-    height_px: int = Field(gt=0)
+    calibration: CameraCalibrationConfig = Field(description="Cómo se pasa de píxeles a mm.")
+    device_name: str = Field(description="Nombre de la cámara en Windows (Administrador de dispositivos).")
+    width_px: int = Field(
+        gt=0, description="Ancho pedido; si la cámara entrega otro, el programa se detiene."
+    )
+    height_px: int = Field(gt=0, description="Alto pedido.")
+    fourcc: str = Field(
+        min_length=4,
+        max_length=4,
+        description="Formato de video: MJPG (comprimido, más imágenes/s) o YUY2 (sin compresión, más lento).",
+    )
     warmup_frames: int = Field(
-        ge=0, description="Imágenes que se descartan al conectar mientras se ajusta la exposición."
+        ge=1, description="Imágenes que se descartan al conectar mientras se ajusta la exposición."
+    )
+    first_frame_timeout_s: float = Field(gt=0, description="Plazo para recibir esas imágenes al conectar.")
+    open_attempts: int = Field(ge=1, description="Veces que se reabre la cámara si no entrega imágenes.")
+    capture_properties: dict[str, float] = Field(
+        description="Propiedades de OpenCV que se fijan al conectar, sin el prefijo CAP_PROP_ "
+        "(p. ej. EXPOSURE, AUTO_WB). Vacío = las de la cámara."
     )
 
 
@@ -114,13 +154,25 @@ class FolderCameraConfig(StrictModel):
     camera_id: str = Field(
         description="La cámara que tomó las imágenes: se usan su calibración y sus referencias."
     )
-    calibration_method: CalibrationMethod
+    calibration: CameraCalibrationConfig = Field(description="Cómo se pasa de píxeles a mm.")
     directory: str = Field(description="Carpeta con las imágenes (.png, .jpg, .bmp), relativa al proyecto.")
     loop: bool = Field(description="Al terminar, vuelve a la primera imagen.")
 
 
+class VideoFileCameraConfig(StrictModel):
+    """Un video grabado, imagen por imagen: para probar la percepción sin cámara."""
+
+    kind: Literal["video"]
+    camera_id: str = Field(
+        description="La cámara que grabó el video: se usan su calibración y sus referencias."
+    )
+    calibration: CameraCalibrationConfig = Field(description="Cómo se pasa de píxeles a mm.")
+    path: str = Field(description="Archivo de video (.mp4, .avi), relativo al proyecto.")
+
+
 CameraConfig = Annotated[
-    MvsCameraConfig | WebcamCameraConfig | FolderCameraConfig, Field(discriminator="kind")
+    MvsCameraConfig | WebcamCameraConfig | FolderCameraConfig | VideoFileCameraConfig,
+    Field(discriminator="kind"),
 ]
 
 
@@ -215,6 +267,8 @@ class ZonesConfig(StrictModel):
 
 
 ZoneName = Literal["pick", "tray", "flip_landing"]
+# Una zona de cell.toml, o toda la imagen (para cámaras sin celda, p. ej. con escala nominal).
+ViewZoneName = Literal["pick", "tray", "flip_landing", "full_view"]
 
 
 class CellConfig(StrictModel):
@@ -240,8 +294,8 @@ class BackgroundPieceDetectorConfig(StrictModel):
     """Piezas sobre un fondo de alto contraste: umbral + contornos."""
 
     kind: Literal["background"]
-    pieces_are: Literal["brighter", "darker"] = Field(
-        description="Las piezas son más claras o más oscuras que el fondo."
+    pieces_are: Literal["brighter", "darker", "different"] = Field(
+        description="Las piezas son más claras, más oscuras o de otro color que el fondo."
     )
     threshold: Annotated[OtsuThreshold | FixedThreshold, Field(discriminator="method")]
     blur_kernel_px: int = Field(ge=1, description="Suavizado antes del umbral (impar).")
@@ -280,7 +334,27 @@ class HistogramFaceClassifierConfig(StrictModel):
     min_margin: float = Field(ge=0, description="Bajo este margen la cara queda 'incierto'.")
 
 
-FaceClassifierConfig = HistogramFaceClassifierConfig
+class TextureFaceClassifierConfig(StrictModel):
+    """Cara por la textura de la superficie: la piel es lisa; el hueso, costillas y cartílago."""
+
+    kind: Literal["texture"]
+    smoothing_mm: float = Field(
+        gt=0, description="Se suaviza a esta escala antes de medir: ignora el ruido y el poro de la piel."
+    )
+    mask_erosion_mm: float = Field(
+        ge=0, description="Se ignora este borde de la pieza (el salto pieza-fondo no es textura)."
+    )
+    threshold_pct_per_mm: float = Field(
+        gt=0, description="Frontera piel/hueso: variación media del brillo, en % por mm."
+    )
+    min_margin_pct_per_mm: float = Field(
+        ge=0, description="A menos de esto de la frontera la cara queda 'incierto'."
+    )
+
+
+FaceClassifierConfig = Annotated[
+    HistogramFaceClassifierConfig | TextureFaceClassifierConfig, Field(discriminator="kind")
+]
 
 
 # ---------------------------------------------------------------------- boards/

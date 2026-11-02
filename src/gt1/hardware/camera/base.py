@@ -9,6 +9,10 @@ from typing import Self
 from gt1.domain import Frame
 
 
+class NoMoreFramesError(Exception):
+    """La fuente de imágenes guardadas (carpeta, video) llegó al final."""
+
+
 class Camera(ABC):
     """Fuente de imágenes. Se usa como contexto: ``with camera: frame = camera.capture()``."""
 
@@ -21,6 +25,11 @@ class Camera(ABC):
     @abstractmethod
     def is_simulated(self) -> bool:
         """Las imágenes no vienen de una cámara conectada (p. ej. de una carpeta)."""
+
+    @property
+    def source_video_fps(self) -> float | None:
+        """Imágenes por segundo del video del que vienen las imágenes; None si no vienen de un video."""
+        return None
 
     @abstractmethod
     def connect(self) -> None:

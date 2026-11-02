@@ -1,0 +1,9 @@
+# record_video: grabar video con la cámara.
+[components]
+camera = "basler_scA1390"
+
+[settings]
+videos_dir = "videos"     # los videos van a videos/<camera_id>/
+video_fps = 30.0          # el video va en tiempo real aunque la cámara entregue menos
+fourcc = "MJPG"           # MJPG + avi funciona en cualquier OpenCV; mp4v + mp4 pesa menos
+file_extension = "avi"

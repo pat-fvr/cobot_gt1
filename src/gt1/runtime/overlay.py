@@ -10,6 +10,8 @@ from numpy.typing import NDArray
 
 from gt1.domain import Face, FaceResult, Piece, PieceStatus
 from gt1.domain.frame import Image
+from gt1.perception.image_ops import Mask
+from gt1.perception.scene import Scene
 
 Color = tuple[int, int, int]
 
@@ -41,16 +43,35 @@ def draw_zone(canvas: Image, polygon_px: NDArray[np.int32], label: str) -> None:
 
 
 def draw_piece(canvas: Image, piece: Piece, face: FaceResult | None) -> None:
-    """Contorno de la pieza y una etiqueta con su cara (o por qué no se puede tomar)."""
-    if piece.status != PieceStatus.OK:
-        color, text = NOT_PICKABLE_COLOR, piece.status.value
-    elif face is None:
-        color, text = FACE_COLORS[Face.UNCERTAIN], "sin clasificar"
-    else:
-        color, text = FACE_COLORS[face.face], f"{face.face.value} ({face.margin:+.2f})"
-    cv2.drawContours(canvas, [piece.contour_px.reshape(-1, 1, 2)], -1, color, 2, cv2.LINE_AA)
+    """Contorno de la pieza (gris si no se puede tomar) y una etiqueta con su cara y por qué no se toma."""
+    text, color = _piece_label(piece, face)
+    contour_color = color if piece.status == PieceStatus.OK else NOT_PICKABLE_COLOR
+    cv2.drawContours(canvas, [piece.contour_px.reshape(-1, 1, 2)], -1, contour_color, 2, cv2.LINE_AA)
     center_x, center_y = piece.contour_px.mean(axis=0)
     _label(canvas, text, (int(center_x) - 40, int(center_y)), color)
+
+
+def _piece_label(piece: Piece, face: FaceResult | None) -> tuple[str, Color]:
+    status = "" if piece.status == PieceStatus.OK else piece.status.value
+    if face is None:
+        return (status, NOT_PICKABLE_COLOR) if status else ("sin clasificar", FACE_COLORS[Face.UNCERTAIN])
+    return f"{face.face.value} ({face.margin:+.2f}) {status}".rstrip(), FACE_COLORS[face.face]
+
+
+def draw_scene(scene: Scene) -> Image:
+    """Copia en color de la imagen de la escena con la zona y cada pieza con su cara."""
+    canvas = to_color(scene.frame.image)
+    draw_zone(canvas, scene.zone_polygon_px, scene.zone.name)
+    for detection in scene.detections:
+        draw_piece(canvas, detection.piece, detection.face)
+    return canvas
+
+
+def tint_mask(image: Image, mask: Mask) -> Image:
+    """Imagen oscurecida con lo que está en ``mask`` resaltado en magenta."""
+    canvas = (to_color(image) * 0.4).astype(np.uint8)
+    canvas[mask > 0] = (canvas[mask > 0] * 0.3 + np.array([255, 0, 255]) * 0.7).astype(np.uint8)
+    return canvas
 
 
 def text_panel(lines: list[str], size_px: tuple[int, int]) -> Image:

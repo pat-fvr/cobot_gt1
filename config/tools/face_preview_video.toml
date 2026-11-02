@@ -1,0 +1,13 @@
+# face_preview con un video grabado de la C270: procesa todas sus imágenes y graba el resultado
+# (lo que se ve en pantalla) en runs/face_preview/<fecha_hora>/.
+# uv run python gt1_tools/face_preview.py --config config/tools/face_preview_video.toml
+[components]
+camera = "video_c270"
+piece_detector = "piece_color_background"
+face_classifier = "face_texture"
+
+[settings]
+zone = "full_view"
+captures_dir = "captures"       # 'espacio' guarda la imagen sin dibujos en captures/<camera_id>/
+video_fourcc = "mp4v"           # mp4v + mp4 pesa bastante menos que MJPG + avi (que funciona en cualquier OpenCV)
+video_file_extension = "mp4"

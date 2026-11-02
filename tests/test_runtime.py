@@ -109,18 +109,18 @@ def test_confirmed_change_updates_the_station(config_dir: Path) -> None:
     questions: list[str] = []
     confirm_station(
         ConfigRepository(config_dir),
-        camera_hardware("webcam_color", simulated=False),
+        camera_hardware("logitech_c270", simulated=False),
         lambda question: questions.append(question) is None,
     )
-    assert "camera: basler_scA1390 -> webcam_color" in questions[0]
-    assert ConfigRepository(config_dir).station().camera == "webcam_color"
+    assert "camera: basler_scA1390 -> logitech_c270" in questions[0]
+    assert ConfigRepository(config_dir).station().camera == "logitech_c270"
 
 
 def test_rejected_change_stops_and_keeps_the_station(config_dir: Path) -> None:
     before = station_text(config_dir)
     with pytest.raises(StationNotConfirmedError):
         confirm_station(
-            ConfigRepository(config_dir), camera_hardware("webcam_color", simulated=False), lambda _: False
+            ConfigRepository(config_dir), camera_hardware("logitech_c270", simulated=False), lambda _: False
         )
     assert station_text(config_dir) == before
 

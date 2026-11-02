@@ -1,0 +1,7 @@
+# Cara por histograma de tono y saturación (cámaras color). Referencias en references/<camera_id>/.
+# Si se cambia color_space o bins_per_channel hay que regenerar las referencias (tecla g).
+kind = "histogram"
+color_space = "hsv"
+bins_per_channel = 16     # 16 x 16 = 256 celdas de tono x saturación
+mask_erosion_px = 8       # se ignora el borde de la pieza (mezcla pieza y fondo)
+min_margin = 0.05         # bajo este margen la cara queda "incierto" y la pieza no se toma

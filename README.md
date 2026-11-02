@@ -11,6 +11,8 @@ El piloto valida, con un **UR10e**, un **soft gripper** y una **cámara fija** (
 
 El código está hecho para crecer: cámara, robot, gripper, detectores y estrategias de toma, volteo y colocación son piezas intercambiables, que se eligen en archivos de configuración.
 
+El vocabulario del proyecto (pieza, cara, zona, estación, corrida…) está en [GLOSSARY.md](GLOSSARY.md).
+
 ## Instalación
 
 Requiere Windows, el **SDK MVS** (para la cámara GigE) y [uv](https://docs.astral.sh/uv/).
@@ -60,10 +62,10 @@ Un archivo por componente; cada programa elige los suyos por nombre.
 | `station.toml` | Hardware montado según la última configuración confirmada. Lo actualizan los programas |
 | `cell.toml` | Disposición del banco: altura de la mesa y zonas (toma, bandeja, volteo) en mm de la base |
 | `robots/` | `UR10e.toml` (RTDE), `sim.toml` (simulado) |
-| `cameras/` | `basler_scA1390.toml` (MVS), `webcam_color.toml`, `folder_basler.toml` (imágenes guardadas) |
+| `cameras/` | `basler_scA1390.toml` (MVS), `logitech_c270.toml` (webcam USB), `folder_basler.toml` y `folder_c270.toml` (imágenes guardadas), `video_c270.toml` (video grabado) |
 | `grippers/` | TCP, carga y acciones → salidas digitales: `soft_2dedos.toml`, `pincho.toml` |
 | `trays/` | Medidas de cada bandeja |
-| `perception/` | `piece_background.toml` (detector de piezas), `face_histogram.toml` (clasificador de cara) |
+| `perception/` | Detectores de piezas: `piece_background.toml` (piezas claras sobre fondo oscuro), `piece_color_background.toml` (fondo de color, ignora sombras). Clasificadores de cara: `face_texture.toml` (textura: piel lisa, hueso con costillas; sin referencias, mono o color), `face_histogram.toml` / `face_histogram_hsv.toml` (histograma contra referencias de piel y hueso) |
 | `boards/` | Tablero de calibración |
 | `strategies/` | Estrategias de toma, volteo y colocación (próxima iteración) |
 | `tests/`, `tools/` | Un archivo por programa: componentes elegidos y ajustes propios |
@@ -89,7 +91,7 @@ Cada ejecución crea `runs/<programa>/<fecha_hora>/`:
 | `config/` | Copia de los archivos de configuración usados |
 | `run.log` | Lo que pasó: conexiones, advertencias, errores |
 
-`runs/`, `captures/` y las muestras de `references/` no se versionan (`.gitignore`): se respaldan aparte.
+`runs/`, `captures/`, `videos/` y las muestras de `references/` no se versionan (`.gitignore`): se respaldan aparte.
 
 ## Mapa del código
 
@@ -109,7 +111,7 @@ src/gt1/                       biblioteca (las capas y sus reglas están en CLAU
     loading.py                 ConfigRepository: lectura y validación estricta
     station.py                 diferencias con station.toml
   hardware/
-    camera/                    Camera; mvs.py (Basler GigE), webcam.py, folder.py
+    camera/                    Camera; mvs.py (Basler GigE), webcam.py, folder.py, video.py (video grabado)
     robot/                     Robot; ur_rtde.py (UR10e), sim.py
     gripper/                   Gripper; digital_outputs.py, fixed.py (pincho), tool_settings.py
   calibration/
@@ -121,9 +123,10 @@ src/gt1/                       biblioteca (las capas y sus reglas están en CLAU
   perception/
     image_ops.py               máscaras, zona en la imagen, escala de grises
     pieces/                    PieceDetector; background.py (fondo de alto contraste)
-    face/                      FaceClassifier; histogram.py, references.py (muestras y referencias)
+    face/                      FaceClassifier; texture.py, histogram.py, references.py (muestras y referencias)
     tray/                      TrayDetector (interfaz)
     verify.py                  PlacementVerifier (interfaz)
+    scene.py                   ScenePerception: de una imagen a la escena (zona, piezas y su cara)
   planning/                    PickStrategy, FlipStrategy, PlaceStrategy (interfaces)
   runtime/
     program.py                 run_program: argumentos, logging, config, registro, errores
@@ -133,6 +136,7 @@ src/gt1/                       biblioteca (las capas y sus reglas están en CLAU
     runner.py                  hilo de trabajo con señal de parada
     overlay.py                 dibujo de zonas, piezas y paneles de texto
     run_log.py                 registro de la corrida
+    video_recording.py         grabación de video en tiempo real (record_video, face_preview)
     terminal.py                preguntas por la terminal
 gt1_test/                      pruebas de validación (ver su README)
 gt1_tools/                     herramientas (ver su README)

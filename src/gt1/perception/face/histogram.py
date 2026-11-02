@@ -87,7 +87,9 @@ def compare(histogram: FloatArray, references: FaceReferences, min_margin: float
         face = Face.UNCERTAIN
     else:
         face = Face.SKIN if margin > 0 else Face.BONE
-    return FaceResult(face, distance_to_skin, distance_to_bone, margin)
+    return FaceResult(
+        face, margin, {"distance_to_skin": distance_to_skin, "distance_to_bone": distance_to_bone}
+    )
 
 
 class HistogramFaceClassifier(FaceClassifier):

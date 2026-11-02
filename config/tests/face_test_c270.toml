@@ -1,0 +1,9 @@
+# face_test con la webcam C270 (fondo turquesa, color).
+# uv run python gt1_test/face_test.py --config config/tests/face_test_c270.toml
+[components]
+camera = "logitech_c270"
+piece_detector = "piece_color_background"
+face_classifier = "face_texture"
+
+[settings]
+zone = "full_view"

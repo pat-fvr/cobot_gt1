@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Piloto de carga robotizada de pechuga entera en bandeja (GT1, Proyecto 171 - Agrosuper)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "cv2-enumerate-cameras>=1.4.0",
     "numpy>=2.0",
     "opencv-python>=4.10",
     "pydantic>=2.8",

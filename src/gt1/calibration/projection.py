@@ -1,6 +1,6 @@
 """Paso de píxeles de la imagen a puntos en la base del robot, y vuelta.
 
-Dos métodos, intercambiables detrás de ``PixelProjector``:
+Tres métodos, intercambiables detrás de ``PixelProjector``:
 
 * ``HomographyProjector`` (homografía plana): una tabla de conversión
   píxel -> (X, Y) ajustada sobre el plano donde estaba el tablero. Es exacta
@@ -9,6 +9,9 @@ Dos métodos, intercambiables detrás de ``PixelProjector``:
 * ``CameraModelProjector`` (modelo 3D de la cámara): dónde está y hacia dónde
   apunta la cámara respecto del robot. Cada píxel es un rayo, y se corta a la
   altura que se pida, sin ese desplazamiento.
+* ``NominalScaleProjector`` (escala nominal): mm por píxel, sin calibrar. Las
+  medidas son aproximadas y el sistema es el de la imagen, no el del robot:
+  sirve para probar la percepción con cualquier cámara, no para mover el robot.
 """
 
 from __future__ import annotations
@@ -60,6 +63,20 @@ class HomographyProjector(PixelProjector):
             -1, 2
         )
         return self._intrinsics.distort(ideal)
+
+
+class NominalScaleProjector(PixelProjector):
+    """(X, Y) = píxel × ``mm_per_px``, en el sistema de la imagen (Y hacia abajo); Z la que se pida."""
+
+    def __init__(self, mm_per_px: float) -> None:
+        self._mm_per_px = mm_per_px
+
+    def pixels_to_base(self, pixels_px: ArrayLike, z_mm: float) -> FloatArray:
+        xy = as_points(pixels_px, 2) * self._mm_per_px
+        return np.column_stack([xy, np.full(len(xy), z_mm)])
+
+    def base_to_pixels(self, points_mm: ArrayLike) -> FloatArray:
+        return as_points(points_mm, 3)[:, :2] / self._mm_per_px
 
 
 class CameraModelProjector(PixelProjector):

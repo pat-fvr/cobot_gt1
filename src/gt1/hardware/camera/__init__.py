@@ -1,5 +1,5 @@
-"""Cámaras: interfaz ``Camera`` e implementaciones (MVS, webcam, carpeta)."""
+"""Cámaras: interfaz ``Camera`` e implementaciones (MVS, webcam, carpeta, video)."""
 
-from .base import Camera
+from .base import Camera, NoMoreFramesError
 
-__all__ = ["Camera"]
+__all__ = ["Camera", "NoMoreFramesError"]

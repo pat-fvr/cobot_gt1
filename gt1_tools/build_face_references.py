@@ -21,22 +21,19 @@ import logging
 import threading
 from dataclasses import dataclass
 
-import numpy as np
-from numpy.typing import NDArray
-
 from gt1 import paths
-from gt1.calibration import CalibrationStore
-from gt1.config.schemas import HistogramFaceClassifierConfig, StrictModel, ZoneName
-from gt1.domain import Face, PieceStatus, Zone
+from gt1.config import ConfigError
+from gt1.config.schemas import HistogramFaceClassifierConfig, StrictModel, ViewZoneName
+from gt1.domain import Face
 from gt1.geometry import FloatArray
 from gt1.hardware.camera import Camera
 from gt1.perception.face.histogram import build_references, compare, piece_histogram
 from gt1.perception.face.references import ReferenceStore
-from gt1.perception.image_ops import erode, zone_polygon_px
-from gt1.perception.pieces import PieceDetector
+from gt1.perception.image_ops import erode
+from gt1.perception.scene import ScenePerception
 from gt1.runtime.console import OperatorConsole
-from gt1.runtime.factories import build_camera, build_piece_detector, build_zone
-from gt1.runtime.overlay import draw_piece, draw_zone, to_color
+from gt1.runtime.factories import build_camera, build_scene_perception
+from gt1.runtime.overlay import draw_scene
 from gt1.runtime.program import Program, run_program
 from gt1.runtime.runner import Job
 from gt1.runtime.station import StationHardware
@@ -52,7 +49,7 @@ class Components(StrictModel):
 
 
 class Settings(StrictModel):
-    zone: ZoneName
+    zone: ViewZoneName
 
 
 class BuildFaceReferencesConfig(StrictModel):
@@ -63,30 +60,22 @@ class BuildFaceReferencesConfig(StrictModel):
 @dataclass
 class ReferenceBuilder:
     camera: Camera
-    detector: PieceDetector
+    perception: ScenePerception
     classifier_config: HistogramFaceClassifierConfig
     store: ReferenceStore
-    zone: Zone
-    zone_polygon_px: NDArray[np.int32]
     console: OperatorConsole
 
     def capture_job(self, label: Face | None) -> Job:
         """Capturar y mostrar las piezas; con ``label``, guardarlas como muestras de esa cara."""
 
         def run(stop: threading.Event) -> None:
-            frame = self.camera.capture()
-            pieces = self.detector.detect(frame, self.zone)
-            pickable = [piece for piece in pieces if piece.status == PieceStatus.OK]
-            canvas = to_color(frame.image)
-            draw_zone(canvas, self.zone_polygon_px, self.zone.name)
-            for piece in pieces:
-                draw_piece(canvas, piece, None)
-            self.console.show(canvas)
+            scene = self.perception.perceive(self.camera.capture())
+            self.console.show(draw_scene(scene))
             if label is not None:
-                for piece in pickable:
-                    self.store.save_sample(frame, piece, label)
+                for detection in scene.pickable:
+                    self.store.save_sample(scene.frame, detection.piece, label)
             self.console.set_status(
-                f"{len(pickable)} piezas tomables de {len(pieces)}"
+                f"{len(scene.pickable)} piezas tomables de {len(scene.detections)}"
                 f"{f', guardadas como {label.value}' if label else ''} | {self._counts()}"
             )
 
@@ -127,11 +116,15 @@ def build_face_references(program: Program[BuildFaceReferencesConfig]) -> None:
     repository = program.repository
     camera_config = repository.camera(components.camera)
     classifier_config = repository.face_classifier(components.face_classifier)
-    projector = CalibrationStore(paths.CALIBRATION_DIR, camera_config.camera_id).load_projector(
-        camera_config.calibration_method
+    if not isinstance(classifier_config, HistogramFaceClassifierConfig):
+        raise ConfigError(
+            f"face_classifier = '{components.face_classifier}' es de tipo '{classifier_config.kind}': "
+            "las referencias son solo para el clasificador 'histogram'."
+        )
+    # Sin clasificador: las referencias se están generando y las piezas se muestran sin cara.
+    perception = build_scene_perception(
+        repository, camera_config, components.piece_detector, None, program.config.settings.zone
     )
-    detector = build_piece_detector(repository.piece_detector(components.piece_detector), projector)
-    zone = build_zone(repository.cell(), program.config.settings.zone)
     store = ReferenceStore(paths.REFERENCES_DIR, camera_config.camera_id)
 
     with build_camera(camera_config) as camera:
@@ -146,9 +139,7 @@ def build_face_references(program: Program[BuildFaceReferencesConfig]) -> None:
             )
         )
         console = OperatorConsole(f"GT1 - {PROGRAM}")
-        builder = ReferenceBuilder(
-            camera, detector, classifier_config, store, zone, zone_polygon_px(zone, projector), console
-        )
+        builder = ReferenceBuilder(camera, perception, classifier_config, store, console)
         console.bind_job("c", "Ver piezas (sin guardar)", builder.capture_job(None))
         console.bind_job("1", "Guardar como PIEL arriba", builder.capture_job(Face.SKIN))
         console.bind_job("2", "Guardar como HUESO arriba", builder.capture_job(Face.BONE))

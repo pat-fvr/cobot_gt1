@@ -5,6 +5,7 @@ Piloto de carga robotizada de pechuga entera en bandeja (GT1, proyecto 171, Agro
 - Mapa de carpetas y módulos, instalación, flujo de trabajo en el banco: [README.md](README.md)
 - Qué valida cada prueba y su protocolo: [gt1_test/README.md](gt1_test/README.md)
 - Herramientas (visor, calibración, referencias): [gt1_tools/README.md](gt1_tools/README.md)
+- Vocabulario del dominio (pieza, cara, zona, estación…): [GLOSSARY.md](GLOSSARY.md)
 
 El código es la referencia de calidad del equipo: **muy limpio y comprensible** para alguien que lo lee por primera vez. Cada cambio lo deja igual o mejor.
 

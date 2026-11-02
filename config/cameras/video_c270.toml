@@ -1,0 +1,10 @@
+# Video grabado con la webcam C270 (fondo turquesa): prueba la percepción sin cámara, imagen por imagen.
+# Se graba con gt1_tools/record_video.py.
+kind = "video"
+camera_id = "logitech_c270"
+path = "videos/webcam_logitech/20261028_160200.mp4"
+
+# La misma escala aproximada que config/cameras/logitech_c270.toml.
+[calibration]
+method = "nominal_scale"
+mm_per_px = 0.45

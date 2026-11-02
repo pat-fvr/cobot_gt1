@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -48,11 +49,11 @@ class Piece:
 class FaceResult:
     """Cara de una pieza y qué tan claro fue el resultado.
 
-    ``margin`` es la diferencia entre las distancias a las referencias de hueso
-    y de piel: positiva = se parece más a piel; cerca de 0 = dudoso.
+    ``margin`` está en las unidades de cada clasificador: positivo = se parece
+    más a piel, negativo = a hueso, cerca de 0 = dudoso. ``measurements`` es lo
+    que midió el clasificador para decidir, con la unidad en el nombre, para el registro.
     """
 
     face: Face
-    distance_to_skin: float
-    distance_to_bone: float
     margin: float
+    measurements: Mapping[str, float]

@@ -1,0 +1,22 @@
+# Logitech C270 HD (USB, VID 046D / PID 0825), mirando la mesa desde arriba. Color.
+kind = "webcam"
+camera_id = "logitech_c270"
+device_name = "Logi C270 HD WebCam"
+width_px = 1280
+height_px = 720
+fourcc = "MJPG"     # 1280 x 720: MJPG ~27 img/s, YUY2 ~10 img/s (medido)
+warmup_frames = 10
+# Por DirectShow la C270 a veces no entrega imágenes al abrir (~1 de 10, medido): se reabre.
+first_frame_timeout_s = 3.0
+open_attempts = 3
+
+# Propiedades de OpenCV (sin CAP_PROP_). Fijar la exposición y el balance de blancos evita que los
+# histogramas cambien con la luz; los valores dependen del driver: probarlos con face_preview. Ejemplo:
+# capture_properties = { AUTO_EXPOSURE = 0.25, EXPOSURE = -6.0, AUTO_WB = 0.0, WB_TEMPERATURE = 4500.0 }
+capture_properties = {}
+
+# Sin calibración con el robot: escala aproximada, solo para probar la percepción.
+# POR MEDIR: poner un objeto de largo conocido en la mesa y ajustar hasta que face_preview lo mida bien.
+[calibration]
+method = "nominal_scale"
+mm_per_px = 0.45

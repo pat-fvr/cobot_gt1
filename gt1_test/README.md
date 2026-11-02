@@ -24,7 +24,7 @@ Al iniciar, cada prueba compara su hardware con `config/station.toml`. Si hay di
 
 **Valida:** que la cámara reconozca la cara de cada pieza (criterio propuesto R2: ≥ 99,5 % de acierto).
 
-**Requiere:** la calibración de la cámara (`gt1_tools/calibrate.py`) y las referencias de cara (`gt1_tools/build_face_references.py`).
+**Requiere:** la calibración de la cámara (`gt1_tools/calibrate.py`) y, con el clasificador por histograma, las referencias de cara (`gt1_tools/build_face_references.py`). El clasificador por textura (`face_texture`) no usa referencias.
 
 **Protocolo:**
 
@@ -39,11 +39,11 @@ Al iniciar, cada prueba compara su hardware con `config/station.toml`. Si hay di
 | `2` | Registrar: todas con el HUESO arriba |
 | `espacio` | Registrar sin etiqueta |
 
-En pantalla, cada pieza muestra su cara y su margen (verde = piel, naranjo = hueso, amarillo = incierto, gris = no tomable: grupo de piezas o en el borde de la zona). La barra de estado acumula el acierto.
+En pantalla, cada pieza muestra su cara y su margen (verde = piel, naranjo = hueso, amarillo = incierto). El contorno gris es una pieza no tomable: las que tocan el borde de la zona muestran igual su cara (y quedan en el registro), pero no cuentan para el acierto; los grupos de piezas no se clasifican. La barra de estado acumula el acierto sobre las piezas tomables.
 
-**Registro:** por captura, la etiqueta, el tiempo de percepción y, por pieza: estado, centro, ángulo, largo, ancho, área, cara detectada, margen, distancias a las referencias y si acertó.
+**Registro:** por captura, la etiqueta, el tiempo de percepción y, por pieza: estado, centro, ángulo, largo, ancho, área, cara detectada, margen, lo que midió el clasificador (`measurements`: distancias a las referencias o textura en %/mm) y si acertó.
 
-**Configuración:** `config/tests/face_test.toml` (cámara, detector de piezas, clasificador, zona).
+**Configuración:** `config/tests/face_test.toml` (Basler, clasificador por histograma) y `config/tests/face_test_c270.toml` (webcam C270 sobre fondo turquesa, clasificador por textura).
 
 ---
 

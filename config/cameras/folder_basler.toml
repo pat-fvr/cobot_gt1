@@ -2,6 +2,10 @@
 # de basler_scA1390. Se llenan con gt1_tools/camera_viewer.py (tecla espacio).
 kind = "folder"
 camera_id = "basler_scA1390"
-calibration_method = "camera_model"
 directory = "captures/basler_scA1390"
 loop = true
+
+# Cómo se pasa de píxeles a mm: camera_model (recomendado) u homography, calibrados con
+# gt1_tools/calibrate.py; o nominal_scale (mm_per_px) para probar sin calibrar.
+[calibration]
+method = "camera_model"

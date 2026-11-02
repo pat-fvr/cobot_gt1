@@ -1,0 +1,9 @@
+# Cara por textura: la piel es lisa; el lado del hueso tiene costillas y cartílago. No usa referencias
+# ni color: sirve igual para cámaras mono y color, y no depende de la exposición ni del balance de blancos.
+# Medido en 27 imágenes de la C270 (81 piezas, videos/webcam_logitech/frames): piel 1,0-1,7 %/mm,
+# hueso 3,3-5,5 %/mm.
+kind = "texture"
+smoothing_mm = 1.0              # escala a la que se mide: más fino que esto es ruido o poro de la piel
+mask_erosion_mm = 5.0           # se ignora el borde de la pieza (el salto pieza-fondo no es textura)
+threshold_pct_per_mm = 2.4      # frontera piel/hueso
+min_margin_pct_per_mm = 0.4     # entre 2,0 y 2,8 %/mm la cara queda "incierto" y la pieza no se toma

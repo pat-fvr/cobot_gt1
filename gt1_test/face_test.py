@@ -18,24 +18,15 @@ Requiere la calibración de la cámara y las referencias de cara.
 from __future__ import annotations
 
 import threading
-import time
 from dataclasses import dataclass, field
 
-import numpy as np
-from numpy.typing import NDArray
-
-from gt1 import paths
-from gt1.calibration import CalibrationStore
-from gt1.config.schemas import StrictModel, ZoneName
-from gt1.domain import Face, FaceResult, Frame, Piece, PieceStatus, Zone
-from gt1.domain.frame import Image
+from gt1.config.schemas import StrictModel, ViewZoneName
+from gt1.domain import Face, FaceResult, PieceStatus
 from gt1.hardware.camera import Camera
-from gt1.perception.face import FaceClassifier
-from gt1.perception.image_ops import zone_polygon_px
-from gt1.perception.pieces import PieceDetector
+from gt1.perception.scene import Detection, ScenePerception
 from gt1.runtime.console import OperatorConsole
-from gt1.runtime.factories import build_camera, build_face_classifier, build_piece_detector, build_zone
-from gt1.runtime.overlay import draw_piece, draw_zone, to_color
+from gt1.runtime.factories import build_camera, build_face_classifier, build_scene_perception
+from gt1.runtime.overlay import draw_scene
 from gt1.runtime.program import Program, run_program
 from gt1.runtime.run_log import JsonValue, RunLog
 from gt1.runtime.runner import Job
@@ -51,7 +42,7 @@ class Components(StrictModel):
 
 
 class Settings(StrictModel):
-    zone: ZoneName
+    zone: ViewZoneName
 
 
 class FaceTestConfig(StrictModel):
@@ -97,10 +88,7 @@ class FaceTally:
 @dataclass
 class FaceTest:
     camera: Camera
-    detector: PieceDetector
-    classifier: FaceClassifier
-    zone: Zone
-    zone_polygon_px: NDArray[np.int32]
+    perception: ScenePerception
     console: OperatorConsole
     run_log: RunLog
     tally: FaceTally = field(default_factory=FaceTally)
@@ -109,47 +97,32 @@ class FaceTest:
         """Trabajo: capturar, clasificar, mostrar y (si ``record``) registrar con la etiqueta ``label``."""
 
         def run(stop: threading.Event) -> None:
-            frame = self.camera.capture()
-            started = time.perf_counter()
-            results = self._classify(frame)
-            perception_ms = (time.perf_counter() - started) * 1000.0
-            overlay = self._draw(frame, results)
+            scene = self.perception.perceive(self.camera.capture())
+            perception_ms = scene.perception_s * 1000.0
+            overlay = draw_scene(scene)
             self.console.show(overlay)
             if not record:
                 self.console.set_status(
-                    f"{len(results)} piezas, percepción {perception_ms:.0f} ms (sin registrar)"
+                    f"{len(scene.detections)} piezas, percepción {perception_ms:.0f} ms (sin registrar)"
                 )
                 return
-            pieces = [self._piece_record(piece, result, label) for piece, result in results]
+            pieces = [self._piece_record(detection, label) for detection in scene.detections]
             attempt = self.run_log.record(
                 {
                     "label": None if label is None else label.value,
                     "perception_ms": perception_ms,
                     "pieces": pieces,
                 },
-                {"capture": frame.image, "overlay": overlay},
+                {"capture": scene.frame.image, "overlay": overlay},
             )
             self.console.set_status(
-                f"#{attempt}: {len(results)} piezas, {perception_ms:.0f} ms | {self.tally.summary()}"
+                f"#{attempt}: {len(scene.detections)} piezas, {perception_ms:.0f} ms | {self.tally.summary()}"
             )
 
         return run
 
-    def _classify(self, frame: Frame) -> list[tuple[Piece, FaceResult | None]]:
-        """Cara de cada pieza tomable; las que no se pueden tomar quedan sin clasificar."""
-        return [
-            (piece, self.classifier.classify(frame, piece) if piece.status == PieceStatus.OK else None)
-            for piece in self.detector.detect(frame, self.zone)
-        ]
-
-    def _draw(self, frame: Frame, results: list[tuple[Piece, FaceResult | None]]) -> Image:
-        canvas = to_color(frame.image)
-        draw_zone(canvas, self.zone_polygon_px, self.zone.name)
-        for piece, result in results:
-            draw_piece(canvas, piece, result)
-        return canvas
-
-    def _piece_record(self, piece: Piece, result: FaceResult | None, label: Face | None) -> JsonValue:
+    def _piece_record(self, detection: Detection, label: Face | None) -> JsonValue:
+        piece, result = detection.piece, detection.face
         record: dict[str, JsonValue] = {
             "status": piece.status.value,
             "center_mm": [round(float(value), 1) for value in piece.center_mm],
@@ -159,12 +132,14 @@ class FaceTest:
             "area_mm2": round(piece.area_mm2),
         }
         if result is not None:
+            # El acierto (criterio R2) se mide sobre las piezas que el robot tomaría: las del borde se
+            # registran con su cara, pero no cuentan.
+            pickable = piece.status == PieceStatus.OK
             record |= {
                 "face": result.face.value,
                 "margin": round(result.margin, 4),
-                "distance_to_skin": round(result.distance_to_skin, 4),
-                "distance_to_bone": round(result.distance_to_bone, 4),
-                "correct": None if label is None else self.tally.add(label, result),
+                "measurements": {name: round(value, 4) for name, value in result.measurements.items()},
+                "correct": self.tally.add(label, result) if label is not None and pickable else None,
             }
         return record
 
@@ -173,14 +148,12 @@ def face_test(program: Program[FaceTestConfig]) -> None:
     components = program.config.components
     repository = program.repository
     camera_config = repository.camera(components.camera)
-    projector = CalibrationStore(paths.CALIBRATION_DIR, camera_config.camera_id).load_projector(
-        camera_config.calibration_method
-    )
-    detector = build_piece_detector(repository.piece_detector(components.piece_detector), projector)
     classifier = build_face_classifier(
         repository.face_classifier(components.face_classifier), camera_config.camera_id
     )
-    zone = build_zone(repository.cell(), program.config.settings.zone)
+    perception = build_scene_perception(
+        repository, camera_config, components.piece_detector, classifier, program.config.settings.zone
+    )
 
     with build_camera(camera_config) as camera:
         program.confirm_station(
@@ -194,9 +167,7 @@ def face_test(program: Program[FaceTestConfig]) -> None:
             )
         )
         console = OperatorConsole(f"GT1 - {PROGRAM}")
-        test = FaceTest(
-            camera, detector, classifier, zone, zone_polygon_px(zone, projector), console, program.run_log
-        )
+        test = FaceTest(camera, perception, console, program.run_log)
         console.bind_job("c", "Ver clasificacion (sin registrar)", test.job(None, record=False))
         console.bind_job("1", "Registrar: todas con PIEL arriba", test.job(Face.SKIN, record=True))
         console.bind_job("2", "Registrar: todas con HUESO arriba", test.job(Face.BONE, record=True))

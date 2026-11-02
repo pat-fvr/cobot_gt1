@@ -1,0 +1,11 @@
+# Imágenes guardadas de la webcam C270 (fondo turquesa): prueba la percepción sin cámara.
+# Se llenan con gt1_tools/video_frames.py a partir de un video de gt1_tools/record_video.py.
+kind = "folder"
+camera_id = "logitech_c270"
+directory = "videos/webcam_logitech/frames"
+loop = true
+
+# La misma escala aproximada que config/cameras/logitech_c270.toml.
+[calibration]
+method = "nominal_scale"
+mm_per_px = 0.45

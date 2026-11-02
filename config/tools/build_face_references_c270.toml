@@ -1,0 +1,9 @@
+# build_face_references con la webcam C270 (fondo turquesa, color).
+# uv run python gt1_tools/build_face_references.py --config config/tools/build_face_references_c270.toml
+[components]
+camera = "logitech_c270"
+piece_detector = "piece_color_background"
+face_classifier = "face_histogram_hsv"
+
+[settings]
+zone = "full_view"

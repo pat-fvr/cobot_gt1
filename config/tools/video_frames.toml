@@ -1,0 +1,4 @@
+# video_frames: reproducir un video grabado y guardar imágenes de él.
+[settings]
+video = "videos/webcam_logitech/20261028_160200.mp4"
+frames_dir = "frames"     # las imágenes van a <carpeta del video>/frames/

@@ -12,7 +12,7 @@ from gt1 import paths
 from gt1.config.schemas import FolderCameraConfig
 from gt1.domain import Frame
 
-from .base import Camera
+from .base import Camera, NoMoreFramesError
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class FolderCamera(Camera):
             raise RuntimeError("La cámara de carpeta no está conectada.")
         if self._next_index >= len(self._files):
             if not self._config.loop:
-                raise RuntimeError("No quedan imágenes en la carpeta.")
+                raise NoMoreFramesError("No quedan imágenes en la carpeta.")
             self._next_index = 0
         path = self._files[self._next_index]
         self._next_index += 1

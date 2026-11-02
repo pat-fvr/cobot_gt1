@@ -1,0 +1,11 @@
+# face_preview: piezas y cara en tiempo real. Con la webcam (escala nominal) se revisa toda la imagen.
+[components]
+camera = "logitech_c270"
+piece_detector = "piece_color_background"
+face_classifier = "face_texture"
+
+[settings]
+zone = "full_view"          # o una zona de cell.toml (pick, tray, flip_landing) con cámaras calibradas
+captures_dir = "captures"   # 'espacio' guarda en captures/<camera_id>/
+video_fourcc = "MJPG"       # si la cámara es un video, el resultado se graba en runs/face_preview/
+video_file_extension = "avi" # MJPG + avi funciona en cualquier OpenCV; mp4v + mp4 pesa menos

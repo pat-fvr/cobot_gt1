@@ -73,7 +73,7 @@ Paso 2 - Cámara-robot. Con el tablero sobre la mesa, se tocan cinco esquinas co
                 Cada píxel es un rayo y se corta a la altura que se pida (mesa, pieza, bandeja),
                 sin ese desplazamiento. Recomendado.
 
-Cuál se usa lo decide calibration_method en config/cameras/<cámara>.toml.
+Cuál se usa lo decide [calibration] method en config/cameras/<cámara>.toml.
 """
 
 
