@@ -1,6 +1,6 @@
 # record_video: grabar video con la cámara.
 [components]
-camera = "basler_scA1390"
+camera = "basler_acA1600"
 
 [settings]
 videos_dir = "videos"     # los videos van a videos/<camera_id>/

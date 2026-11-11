@@ -1,0 +1,11 @@
+# face_preview con la Basler acA1600 (color) calibrada: piezas y cara en toda la vista.
+[components]
+camera = "basler_acA1600"
+piece_detector = "piece_color_background"   # por color, sin escena vacía (como la webcam)
+face_classifier = "face_texture_basler"
+
+[settings]
+zone = "full_view"          # o una zona de cell.toml (pick, tray, flip_landing)
+captures_dir = "captures"   # 'espacio' guarda en captures/<camera_id>/
+video_fourcc = "MJPG"
+video_file_extension = "avi"

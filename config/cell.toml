@@ -1,17 +1,30 @@
 # Cómo está armado el banco de pruebas. Si se mueve la mesa, la cámara o una zona, se cambia solo este archivo.
 # Coordenadas en mm en el sistema de la base del robot.
 
-# Superficie de la mesa. Valor medido en el banco del 171 (cobot_iqf, octubre 2026): confirmar
-# con la calibración (la herramienta calibrate informa la altura del tablero).
-table_z_mm = -110.0
+# Superficie de la mesa, de la calibración cámara-robot del 2026-11-10 con la acA1600 (placa Cognex tocada
+# en 5 esquinas: superficie de la placa en Z=-110,0 menos sus 10 mm de espesor; el 2026-11-04 dio -119,9).
+# La placa no queda a nivel: sus esquinas van de Z=-106,2 a -113,4 mm.
+table_z_mm = -120.0
 
-# Zonas: polígonos (X, Y) en orden. POR DEFINIR en el banco: estos valores reparten el campo visual
-# de la cámara del 171 (~700 x 540 mm centrado en X=520, Y=470) y sirven solo para empezar.
+# La pose del robot fuera de la vista de la cámara, desde la que se captura, es "home" en robot_poses.toml.
+
+# Zonas: polígonos (X, Y) en orden. pick y tray son las mitades superior e inferior de la imagen de la
+# acA1600 (píxeles x 15-1585; y 15-590 e y 610-1185) proyectadas a la mesa con su calibración del
+# 2026-11-10: las pechugas se dejan arriba en la imagen y las bandejas abajo.
+# flip_landing sigue siendo el valor de partida del 171 (no hay estación de volteo en el banco).
 [zones.pick]
-polygon_mm = [[280.0, 260.0], [520.0, 260.0], [520.0, 680.0], [280.0, 680.0]]
+polygon_mm = [[382.0, -157.0], [-13.0, 872.0], [406.0, 963.0], [753.0, 34.0]]
 
 [zones.tray]
-polygon_mm = [[540.0, 260.0], [760.0, 260.0], [760.0, 470.0], [540.0, 470.0]]
+polygon_mm = [[764.0, 40.0], [419.0, 966.0], [764.0, 1057.0], [1082.0, 187.0]]
 
 [zones.flip_landing]
 polygon_mm = [[540.0, 490.0], [760.0, 490.0], [760.0, 680.0], [540.0, 680.0]]
+
+# Bandeja fija de pick_place_test, apoyada en la mesa dentro de zones.tray (tray_loading_test las detecta).
+# Es la bandeja de la derecha de escena_bandejas_vacias.png según el detector de bandejas del 2026-11-05
+# (una sola línea, con el centro corrido ~2 cm).
+# POR CONFIRMAR con la punta del gripper en el centro de la bandeja ('t' en freedrive).
+[tray_placement]
+center_mm = [761.0, 497.0]
+axis_angle_deg = 22.0

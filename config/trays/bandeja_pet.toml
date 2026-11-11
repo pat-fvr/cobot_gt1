@@ -1,7 +1,15 @@
-# Bandeja PET transparente, 1 pechuga por bandeja. POR MEDIR (pedir ficha a Agrosuper).
+# Bandeja PET transparente, 1 pechuga por bandeja.
+# Borde exterior y alto medidos en la bandeja (2026-11-10): 217 x 167 mm y 80 mm. En la imagen de la acA1600 el
+# borde de la bandeja de la izquierda mide 218 x 168 mm a 80 mm de la mesa, lo que confirma la calibración.
+# El fondo, entre los pliegues donde las paredes tocan la mesa, medido en vistas cenitales de
+# captures/basler_acA1600/escena_4_bandejas_4_pollos_20261110.png (±5 mm): POR MEDIR con regla.
+# Un error en el borde corre el centro detectado en la mitad de ese error.
+# Borde de sellado POR MEDIR (pedir ficha a Agrosuper).
 description = "Bandeja PET transparente"
-inner_length_mm = 230.0
-inner_width_mm = 170.0
-depth_mm = 50.0
+rim_length_mm = 217.0
+rim_width_mm = 167.0
+floor_length_mm = 175.0
+floor_width_mm = 122.0
+depth_mm = 80.0
 seal_flange_mm = 8.0
 min_clearance_to_flange_mm = 3.0

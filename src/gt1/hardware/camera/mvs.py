@@ -1,6 +1,7 @@
 """Cámara GigE Vision a través del SDK MVS (Hikrobot).
 
-Probado con la Basler Scout scA1390 (monocromática, 1392x1040). MVS habla
+Probado con la Basler Scout scA1390 (monocromática, 1392x1040) y la Basler ace
+acA1600-60gc (color, 1600x1200, BayerRG8 convertido a BGR). MVS habla
 GigE Vision estándar, así que sirve para cualquier cámara GigE con los nodos
 GenICam habituales. ``pypylon`` no funciona bien con esta cámara.
 
@@ -97,8 +98,11 @@ class MvsCamera(Camera):
             self._sdk = None
 
     def capture(self) -> Frame:
-        """Primera imagen completa que llegue; las que pierden paquetes se descartan."""
+        """Primera imagen completa que llegue después de la llamada; las que pierden paquetes se descartan."""
         handle, sdk = self._require_connected()
+        # El SDK guarda las imágenes que llegan mientras nadie captura y las entrega en orden: después
+        # de unos segundos sin capturar (mientras el robot se mueve) la primera sería vieja.
+        _check(handle.MV_CC_ClearImageBuffer(), "MV_CC_ClearImageBuffer")
         for _ in range(self._config.max_incomplete_frames):
             timeout_ms = (
                 self._config.first_frame_timeout_ms

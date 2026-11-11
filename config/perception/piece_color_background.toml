@@ -1,5 +1,6 @@
 # Piezas de otro color que el fondo (p. ej. fondo turquesa con la webcam): distancia de color a la
 # mediana de la zona. Detecta igual la piel (clara) y las costillas (oscuras). Áreas en mm² de la mesa.
+# Ajustado con la C270; con la Basler acA1600 (color) POR VALIDAR en el banco con face_preview_basler.
 kind = "background"
 pieces_are = "different"
 threshold = { method = "otsu" } # u { method = "fixed", level = 40 } (distancia de color 0..255)

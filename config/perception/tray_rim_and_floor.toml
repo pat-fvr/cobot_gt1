@@ -1,0 +1,37 @@
+# Bandejas PET por el pliegue del fondo (en la mesa) en los lados en sombra y el labio del borde (a depth_mm
+# de la mesa) en los otros, con las medidas de config/trays/. No usa escena vacía.
+# Ajustado el 2026-11-10 con la acA1600 en zones.tray:
+#   - tests/data/basler_acA1600/escena_4_bandejas_4_pollos.png (4 bandejas a 8°, 22°, 38° y -37°, dos bajo los
+#     reflejos del film): las 4, con 17-31 %, a ≤ 13 mm y ≤ 7° de lo medido a mano en el borde (los centros salen
+#     corridos hacia +Y de la base);
+#   - tests/data/basler_acA1600/escena_bandejas_vacias.png (2 bandejas, la izquierda en la sombra): las 2;
+#   - tests/data/basler_acA1600/escena_film_azul.png (mesa con film azul, 3 bandejas): las 3, con 24-35 %;
+#   - en las fotos de la scA1390 (pechugas, cartón, film): ninguna.
+kind = "rim_and_floor"
+grid_mm = 2.0                   # con 3 mm la línea del fondo queda en 2 puntos y se pierde la de la sombra
+angle_step_deg = 2.0
+# Búsqueda gruesa: todos los ángulos a 8° en una grilla de 6 mm, y cada pose que resulta se afina a grid_mm
+# y angle_step_deg. Con la acA1600 tarda ~0,15-0,2 s (buscar todo en la grilla fina, ~9 s). Con los ángulos
+# a 10° todavía salen las 4 de escena_4_bandejas_4_pollos; con la grilla a 8 mm, una sale mal girada.
+coarse_grid_mm = 6.0
+coarse_angle_step_deg = 8.0
+glint_width_mm = 10.0           # sin esto, los reflejos del film puntúan hasta 11 %
+dark_line_width_mm = 24.0       # el pliegue festoneado del fondo mide ~8-10 mm; con 16 la bandeja derecha daba 8 %
+# Con la luz del banco, el pliegue se ve en los lados de abajo y de la derecha de la imagen de la acA1600
+# (40-50 %); el labio, en los de arriba y la izquierda (0-25 %: bajo los reflejos del film casi no se ve).
+shadow_toward_deg = 70.0
+side_tolerance_mm = 4.0         # cuánto puede estar corrida la línea respecto del rectángulo del archivo
+side_length_fraction = 0.6      # las esquinas son redondeadas: se mide el centro de cada lado
+neighbor_offset_mm = 10.0
+# Bandejas: pliegue 45-50 %; el mejor lado largo y el mejor corto, 17-50 % (a veces solo esos dos se ven: bajo
+# los reflejos, el labio da 3-5 %). Lo demás: o no tiene pliegue, o una sola línea fuerte (el borde de una
+# pechuga, 70-112 %) con el lado perpendicular bajo 14 %, o dos lados paralelos (una bandeja que sale de la
+# imagen, corrida a lo largo de ellos).
+min_fold_contrast_pct = 25.0
+min_line_contrast_pct = 15.0
+# Lo que encierra la bandeja vacía comparado con la mesa alrededor. Bandejas: paredes de -8 a +6 %, interior
+# de -6 a +15 %. Lo demás: paredes -11,6 % o menos (caja, sombras de las piezas, cartón) o interior +45 %
+# (pechuga). Una bandeja cruzada por la franja de luz y sombra mide -11,3 % (escena_3_bandejas_giradas): tan
+# cerca de lo falso que no hay un límite que separe las dos.
+min_wall_vs_table_pct = -10.5
+max_floor_vs_table_pct = 30.0

@@ -12,9 +12,10 @@ first_frame_timeout_ms = 5000
 frame_timeout_ms = 1000
 max_incomplete_frames = 10
 
-# Nodos GenICam que se fijan al conectar (vacío = los que tenga la cámara). Ejemplo:
-# genicam_nodes = { ExposureAuto = "Off", ExposureTimeAbs = 20000.0, GainRaw = 300 }
-genicam_nodes = {}
+# Nodos GenICam que se fijan al conectar. Exposición de 30 ms con la ganancia al mínimo (350, menos
+# ruido): con la luz del banco (2026-11-04) la piel queda bajo ~230 y solo saturan los reflejos del film.
+# En múltiplos de 10 ms para que la luz de 50 Hz no haga variar el brillo entre imágenes.
+genicam_nodes = { ExposureTimeAbs = 30000.0, GainRaw = 350 }
 
 # Cómo se pasa de píxeles a mm: camera_model (recomendado) u homography, calibrados con
 # gt1_tools/calibrate.py; o nominal_scale (mm_per_px) para probar sin calibrar.

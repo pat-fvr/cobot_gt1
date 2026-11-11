@@ -2,7 +2,7 @@
 
 Al iniciar, un menú en la terminal:
 
-    0  generar la imagen del tablero ChArUco para imprimir
+    0  generar la imagen del tablero para imprimir
     1  lente (intrínsecos): mostrar el tablero a la cámara en muchas posiciones
     2  cámara-robot: tablero sobre la mesa y cinco esquinas tocadas con el pincho
 
@@ -20,7 +20,8 @@ Paso 2, teclas:
     v        volver a la imagen en vivo (para mover el tablero y fijarlo de nuevo)
 
 Los archivos quedan en ``calibration/<camera_id>/``. El paso 2 usa el gripper
-"pincho" (su TCP es la punta): se carga en el robot al iniciar.
+"pincho" (su TCP es la punta): se carga en el robot al iniciar. El tablero
+(ChArUco o de ajedrez) se elige en ``board`` de ``config/tools/calibrate.toml``.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ import numpy as np
 
 from gt1 import paths
 from gt1.calibration import CalibrationStore
-from gt1.calibration.board import BoardDetection, CharucoBoard
+from gt1.calibration.boards import BoardDetection, CalibrationBoard, touch_corner_ids
 from gt1.calibration.extrinsics import TouchPoint, fit_camera_pose, fit_homography, locate_board
 from gt1.calibration.intrinsics import MIN_CORNERS_PER_VIEW, Intrinsics, calibrate_intrinsics
 from gt1.config.schemas import CalibrationMethod, StrictModel
@@ -44,7 +45,7 @@ from gt1.geometry import transform_points
 from gt1.hardware.camera import Camera
 from gt1.hardware.robot import Robot
 from gt1.runtime.console import OperatorConsole
-from gt1.runtime.factories import build_camera, build_gripper, build_robot
+from gt1.runtime.factories import build_board, build_camera, build_gripper, build_robot
 from gt1.runtime.overlay import to_color
 from gt1.runtime.program import Program, run_program
 from gt1.runtime.runner import Job
@@ -105,7 +106,7 @@ def draw_corners(image: Image, detection: BoardDetection | None) -> Image:
 class LiveBoardView:
     """Imagen en vivo con el tablero detectado; guarda la última imagen y su detección."""
 
-    def __init__(self, camera: Camera, board: CharucoBoard, console: OperatorConsole) -> None:
+    def __init__(self, camera: Camera, board: CalibrationBoard, console: OperatorConsole) -> None:
         self._camera = camera
         self._board = board
         self._console = console
@@ -188,7 +189,7 @@ class RobotCalibration:
         *,
         view: LiveBoardView,
         robot: Robot,
-        board: CharucoBoard,
+        board: CalibrationBoard,
         intrinsics: Intrinsics,
         console: OperatorConsole,
         store: CalibrationStore,
@@ -201,7 +202,7 @@ class RobotCalibration:
         self._console = console
         self._store = store
         self._methods = methods
-        self._targets = board.touch_corner_ids()
+        self._targets = np.zeros(0, dtype=np.int32)  # esquinas a tocar; se eligen al fijar el tablero
         self._fixed: tuple[Frame, BoardDetection] | None = None
         self._touches: list[TouchPoint] = []
         self._freedrive = False
@@ -215,12 +216,13 @@ class RobotCalibration:
         if latest is None or detection is None:
             self._console.set_status("No se ve el tablero.")
             return
-        missing = set(self._targets.tolist()) - set(detection.corner_ids.tolist())
-        if missing:
-            self._console.set_status(f"No se ven las esquinas a tocar {sorted(missing)}: mueva el tablero.")
+        targets = touch_corner_ids(detection)
+        if len(set(targets.tolist())) < len(targets):
+            self._console.set_status("Se ve muy poco del tablero para elegir las esquinas a tocar.")
             return
         self._console.stop_job(timeout_s=2.0)
         self._fixed = (latest[0], detection)
+        self._targets = targets
         self._touches = []
         self._show_targets()
 
@@ -233,12 +235,13 @@ class RobotCalibration:
         if self._fixed is None:
             self._console.set_status("Primero fije el tablero con 'b'.")
             return
+        _, detection = self._fixed
         if len(self._touches) == len(self._targets):
             self._console.set_status("Ya están todos los toques: 'c' para calcular o 'u' para deshacer.")
             return
         corner_id = int(self._targets[len(self._touches)])
         tip = self._robot.tcp_pose().position_mm
-        board_point = self._board.corner_points_mm(np.array([corner_id], dtype=np.int32))[0]
+        board_point = detection.board_points_mm[detection.corner_ids.tolist().index(corner_id)]
         self._touches.append(TouchPoint(corner_id=corner_id, board_point_mm=board_point, base_point_mm=tip))
         logger.info("Esquina %d tocada en X=%.1f Y=%.1f Z=%.1f mm.", corner_id, *tip)
         self._show_targets()
@@ -269,7 +272,7 @@ class RobotCalibration:
         board_z_mm = float(
             transform_points(board_in_base.base_from_board, detection.board_points_mm)[:, 2].mean()
         )
-        table_z_mm = board_z_mm - self._board.config.thickness_mm
+        table_z_mm = board_z_mm - self._board.thickness_mm
         logger.info("Calibración cámara-robot guardada en %s: %s.", self._store.directory, "; ".join(results))
         logger.info(
             "Superficie del tablero en Z=%.1f mm -> mesa en Z=%.1f mm (table_z_mm en cell.toml).",
@@ -320,7 +323,7 @@ def calibrate(program: Program[CalibrateConfig]) -> None:
         },
     )
     settings = program.config.settings
-    board = CharucoBoard(program.repository.board(settings.board))
+    board = build_board(program.repository.board(settings.board))
     if step == "0":
         print_board(board, settings)
     elif step == "1":
@@ -336,7 +339,7 @@ def calibrate(program: Program[CalibrateConfig]) -> None:
         calibrate_camera_to_robot(program, board, methods)
 
 
-def print_board(board: CharucoBoard, settings: Settings) -> None:
+def print_board(board: CalibrationBoard, settings: Settings) -> None:
     path = paths.CALIBRATION_DIR / f"tablero_{settings.board}.png"
     cv2.imwrite(str(path), board.render(settings.board_print_pixels_per_mm))
     dpi = settings.board_print_pixels_per_mm * 25.4
@@ -345,7 +348,7 @@ def print_board(board: CharucoBoard, settings: Settings) -> None:
     )
 
 
-def calibrate_lens(program: Program[CalibrateConfig], board: CharucoBoard) -> None:
+def calibrate_lens(program: Program[CalibrateConfig], board: CalibrationBoard) -> None:
     components = program.config.components
     camera_config = program.repository.camera(components.camera)
     store = CalibrationStore(paths.CALIBRATION_DIR, camera_config.camera_id)
@@ -372,7 +375,7 @@ def calibrate_lens(program: Program[CalibrateConfig], board: CharucoBoard) -> No
 
 
 def calibrate_camera_to_robot(
-    program: Program[CalibrateConfig], board: CharucoBoard, methods: tuple[CalibrationMethod, ...]
+    program: Program[CalibrateConfig], board: CalibrationBoard, methods: tuple[CalibrationMethod, ...]
 ) -> None:
     components = program.config.components
     repository = program.repository

@@ -5,11 +5,14 @@ import pytest
 
 from gt1.domain import Pose
 from gt1.geometry import (
+    axis_angle_nearest_deg,
     fit_rigid_transform,
     homogeneous,
     invert_transform,
+    position_along_mm,
     rotation_about_z,
     rotation_from_vector,
+    tool_pointing_down,
     transform_points,
     vector_from_rotation,
     wrap_axis_angle_deg,
@@ -60,3 +63,29 @@ def test_pose_rotation_vector_in_degrees_matches_ur_convention() -> None:
     assert np.allclose(pose.rotation @ np.array([1.0, 0.0, 0.0]), [0.0, 1.0, 0.0])
     assert np.allclose(pose.rotation_vector_deg(), [0.0, 0.0, 90.0])
     assert pose.is_close(Pose.from_rotation_vector_deg((1.0, 2.0, 3.2), (0.0, 0.0, 90.1)), 0.5, 0.5)
+
+
+@pytest.mark.parametrize("angle_deg", [0.0, 30.0, -75.0, 90.0])
+def test_tool_pointing_down_has_its_y_axis_along_the_angle(angle_deg: float) -> None:
+    rotation = tool_pointing_down(angle_deg)
+    angle = np.radians(angle_deg)
+    assert np.allclose(rotation[:, 2], [0.0, 0.0, -1.0])
+    assert np.allclose(rotation[:, 1], [np.cos(angle), np.sin(angle), 0.0])
+    assert np.allclose(rotation.T @ rotation, np.eye(3))
+    assert np.linalg.det(rotation) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    ("axis_deg", "reference_deg", "expected_deg"),
+    [(10.0, 0.0, 10.0), (80.0, -60.0, -100.0), (-80.0, 170.0, 100.0), (0.0, 90.0, 0.0)],
+    ids=["igual", "media vuelta abajo", "media vuelta arriba", "empate: el mismo"],
+)
+def test_axis_angle_nearest_turns_at_most_a_quarter(
+    axis_deg: float, reference_deg: float, expected_deg: float
+) -> None:
+    assert axis_angle_nearest_deg(axis_deg, reference_deg) == pytest.approx(expected_deg)
+
+
+@pytest.mark.parametrize(("toward_deg", "expected_mm"), [(0.0, 300.0), (90.0, 400.0), (180.0, -300.0)])
+def test_position_along_a_direction_ignores_the_height(toward_deg: float, expected_mm: float) -> None:
+    assert position_along_mm((300.0, 400.0, -120.0), toward_deg) == pytest.approx(expected_mm)

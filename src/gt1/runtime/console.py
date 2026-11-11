@@ -109,13 +109,19 @@ class OperatorConsole:
             while True:
                 cv2.imshow(self._title, self._render())
                 key = cv2.waitKey(WINDOW_POLL_MS) & 0xFF
-                if key == ord("q") or cv2.getWindowProperty(self._title, cv2.WND_PROP_VISIBLE) < 1:
+                if key == ord("q") or not self._window_open():
                     return
                 self._handle_key(key)
         finally:
-            cv2.destroyWindow(self._title)
+            # Primero el trabajo: al volver, el programa suelta el hardware que el trabajo está usando.
             if not self.stop_job(JOB_STOP_TIMEOUT_S):
                 logger.error("El trabajo en curso no se detuvo en %.0f s al salir.", JOB_STOP_TIMEOUT_S)
+            # Cerrada con la X, la ventana ya no existe y destroyWindow fallaría.
+            if self._window_open():
+                cv2.destroyWindow(self._title)
+
+    def _window_open(self) -> bool:
+        return cv2.getWindowProperty(self._title, cv2.WND_PROP_VISIBLE) >= 1
 
     def _handle_key(self, key: int) -> None:
         if key == ord("x"):

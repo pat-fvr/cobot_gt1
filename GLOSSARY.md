@@ -27,6 +27,19 @@ _Evitar_: desconocida, dudosa
 El envase PET transparente donde termina la pieza con la piel arriba.
 _Evitar_: contenedor, caja, envase
 
+**Línea central** (*midline*):
+La línea que separa los dos lóbulos de la pechuga entera, vista desde arriba: su eje de simetría. En la bandeja queda a lo largo del lado largo.
+_Evitar_: eje (salvo el eje mayor, que en una pieza con línea central medida es la misma línea)
+
+**Lóbulos** (*lobes*):
+Las dos mitades de la pechuga a cada lado de la línea central; juntas forman el extremo más ancho. El otro extremo es la punta. En la bandeja los lóbulos van hacia un sentido fijo (*lobes_toward_deg*).
+
+**Fondo de la bandeja** (*tray floor*):
+La base de la bandeja, apoyada en la mesa. El pliegue oscuro donde las paredes se doblan hacia el fondo es una de las dos líneas que busca el detector de bandejas.
+
+**Borde de la bandeja** (*tray rim*):
+El contorno superior de la bandeja, a su alto sobre la mesa; sus medidas son de labio a labio. El labio es la otra línea que busca el detector de bandejas.
+
 **Borde de sellado** (*seal flange*):
 El borde superior de la bandeja donde va el film. Tiene que quedar libre de producto.
 
@@ -54,7 +67,7 @@ _Evitar_: área, región
 Donde se dejan las piezas para que el robot las tome.
 
 **Zona de bandeja** (*tray zone*):
-Donde está la bandeja.
+Donde están las bandejas.
 
 **Zona de caída del volteo** (*flip landing zone*):
 Donde caen las piezas después de la estación de volteo.
@@ -64,6 +77,9 @@ La zona que cubre toda la imagen de la cámara.
 
 **Estación de volteo** (*flip station*):
 El dispositivo fijo de la celda (rampa, caída) que da vuelta la pieza.
+
+**Estación de bandeja** (*tray station*):
+El tramo de la cinta de bandejas donde un **tope** (*stopper*, una salida digital: 1 cerrado, 0 abierto) detiene cada bandeja bajo la pose de soltar y un **sensor de bandeja** (*tray sensor*, una entrada digital) dice que llegó. La bandeja está siempre en el mismo lugar: no se detecta con la cámara (`demo_static_tray`).
 
 **Estación** (*station*):
 El hardware que está montado en el banco ahora: qué robot, cámara, gripper y bandeja. El operador lo confirma al iniciar un programa.
@@ -78,7 +94,7 @@ El sistema de referencia del robot. Una posición sin otro sistema indicado est�
 Lo que va montado en la brida del robot: un gripper o el pincho.
 
 **Gripper** (*gripper*):
-La herramienta que agarra la pieza; en el piloto, un soft gripper de dos dedos.
+La herramienta que agarra la pieza; en el piloto, un soft gripper en X asimétrico: su parte ancha va hacia los lóbulos y la angosta hacia la punta (*wide_side*).
 _Evitar_: pinza, garra, efector
 
 **Acción del gripper** (*gripper action*):
@@ -96,6 +112,10 @@ La masa de la herramienta y su centro de gravedad, que el robot necesita para de
 
 **Fuera de la vista**:
 Robot ubicado de modo que no tapa la zona que la cámara está mirando.
+
+**Pose enseñada** (*taught pose*):
+Articulaciones del robot guardadas con un nombre en `robot_poses.toml` después de llevarlo a mano con freedrive. **Home** es la pose enseñada fuera de la vista desde la que se captura y se parte a cada toma; **tray_drop**, la de soltar sobre la estación de bandeja, también fuera de la vista.
+_Evitar_: posición de reposo, pose de captura
 
 **Freedrive**:
 Modo en que el operador mueve el robot con la mano.
@@ -121,10 +141,14 @@ _Evitar_: depósito, descarga
 Una forma de tomar, voltear o colocar una pieza, que a partir de lo que vio la cámara produce un plan.
 
 **Plan** (*plan*):
-Los pasos en orden (movimientos, acciones del gripper, esperas) que lleva a cabo una estrategia.
+Los pasos en orden (movimientos, acciones del gripper, salidas digitales, esperas de tiempo o de una entrada) que lleva a cabo una estrategia.
 
 **Ejecutor** (*executor*):
 El que lleva a cabo un plan con el robot y lo detiene si algo falla.
+
+**Carga de bandeja** (*load*):
+Una pieza tomada de la zona de toma y dejada en una bandeja libre, verificada con la cámara. Una bandeja está libre si no tiene una pieza adentro ni se cargó en el ciclo.
+_Evitar_: carga a secas (es la del gripper, *payload*), llenado
 
 **Verificación de colocación** (*placement verification*):
 Revisar con la cámara cómo quedó la pieza. La colocación es exitosa si la pieza está en la bandeja, con la piel arriba y con el borde de sellado libre.
@@ -159,6 +183,10 @@ _Evitar_: montón, pila
 **Pieza en el borde** (*cut by zone edge*):
 Una pieza que toca el borde de la zona y puede estar en parte fuera de ella. Se clasifica su cara pero no se toma.
 
+**Escena vacía** (*empty scene*):
+Imagen de la zona sin piezas y con el robot fuera de la vista, promedio de varias capturas. El detector por referencia toma por pieza lo que cambió respecto de ella; se captura de nuevo si cambia la luz, el film, la exposición o la cámara.
+_Evitar_: fondo, imagen de fondo
+
 **Clasificador de cara** (*face classifier*):
 Lo que decide la cara de una pieza a partir de la imagen.
 
@@ -191,7 +219,7 @@ _Evitar_: intrínsecos (salvo en el código)
 La posición de la cámara respecto de la base, obtenida con el tablero y toques del pincho.
 
 **Tablero** (*board*):
-El patrón ChArUco impreso que se usa para calibrar.
+El patrón que se usa para calibrar: un ChArUco impreso o una placa de ajedrez sin marcadores (Cognex).
 _Evitar_: patrón, damero
 
 **Toque** (*touch*):

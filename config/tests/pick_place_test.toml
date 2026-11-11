@@ -1,0 +1,21 @@
+# pick_place_test: tomar una pechuga con la piel arriba de la zona de toma y dejarla en la bandeja fija.
+[components]
+camera = "basler_acA1600"
+robot = "UR10e"
+gripper = "soft_x_asimetrico"
+tray = "bandeja_pet"
+piece_detector = "piece_color_background" # por color, sin escena vacía (como la webcam)
+face_classifier = "face_texture_basler"
+pick_strategy = "pick_top_down"
+place_strategy = "place_top_down"
+
+[settings]
+pick_zone = "pick"              # mitad superior de la imagen
+tray_zone = "tray"              # mitad inferior, contiene la bandeja fija
+
+[settings.clear_view]
+pose = "home"                   # de robot_poses.toml, enseñada con gt1_tools/freedrive.py
+safe_height_mm = 200.0          # la punta sube en vertical hasta aquí antes de ir fuera de la vista
+rise_speed_mm_s = 400.0         # 2026-11-10: 50 -> 100 -> 200 -> 400
+clear_speed_deg_s = 120.0       # hasta la pose fuera de la vista: el máximo de la base y el hombro del UR10e
+capture_settle_s = 0.5          # desde que llega hasta capturar: vibración y la imagen en camino

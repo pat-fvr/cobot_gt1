@@ -1,0 +1,13 @@
+# Toma desde arriba: el gripper baja vertical al centro de la pieza, con su lado largo a lo largo de ella.
+# Alturas de la punta (TCP) sobre la mesa (table_z_mm de cell.toml). POR AJUSTAR en el banco: empezar
+# lento y subir las velocidades cuando la toma sea repetible.
+travel_speed_mm_s = 1500.0      # hasta quedar sobre la pieza (2026-11-10: 150 -> 300 -> 600 -> 1000 -> 1500)
+approach_height_mm = 90.0       # sobre la pieza, antes de bajar
+grasp_height_mm = 0.0           # al cerrar el gripper: la punta de los dedos tocando la mesa (blandos)
+after_grip_descent_mm = 40.0    # ya cerrado: los dedos se recogen al cerrar, y bajar los mete bajo la pieza
+                                # (con 50 chocó con la mesa: C153A1, 2026-11-10; con 30 no)
+lift_height_mm = 90.0           # con la pieza tomada: de aquí va directo a la bandeja
+descend_speed_mm_s = 500.0      # al bajar a la pieza y al subir con ella (2026-11-10: 50 -> ... -> 300 -> 500)
+                                # Si vuelve C153A1 al bajar cerrado contra la mesa, bajar esta primero
+blend_radius_mm = 30.0          # curva al llegar sobre la pieza y al terminar de subir: empieza a bajar
+                                # 30 mm antes de quedar sobre ella y a avanzar 30 mm antes de llegar arriba

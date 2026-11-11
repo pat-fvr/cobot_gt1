@@ -1,0 +1,26 @@
+# demo_static_tray: cargar las pechugas de la zona de toma, una tras otra, en la bandeja fija con tope.
+[components]
+camera = "basler_acA1600"
+robot = "UR10e"
+gripper = "soft_x_asimetrico"
+piece_detector = "piece_skin_outline"   # solo piel arriba, sin escena vacía
+pick_strategy = "pick_top_down"
+
+[settings]
+pick_zone = "pick"              # mitad superior de la imagen
+# De izquierda a derecha en la imagen de la acA1600 (su calibración del 2026-11-10): casi +Y de la base.
+left_to_right_deg = 110.5
+pick_from = "left"              # "right": se toma primero la de más a la derecha
+
+# La pose de soltar sobre la bandeja fija; queda fuera de la vista de la cámara y desde ella se captura.
+[settings.clear_view]
+pose = "tray_drop"              # de robot_poses.toml, POR ENSEÑAR con gt1_tools/freedrive.py (tecla 2)
+safe_height_mm = 200.0          # al ir a soltar, la punta sube en vertical hasta aquí si está más baja
+rise_speed_mm_s = 400.0
+clear_speed_deg_s = 120.0       # hasta la pose de soltar: el máximo de la base y el hombro del UR10e
+capture_settle_s = 0.5          # desde que llega hasta capturar: vibración y la imagen en camino
+
+[settings.tray_station]
+stopper = { port = "standard", number = 3 }       # DO3: 1 cerrado (detiene la bandeja), 0 abierto
+tray_sensor = { port = "standard", number = 1 }   # DI1: 1 con una bandeja en el tope
+stopper_open_s = 3.0            # después de soltar, el tope queda abierto este tiempo y se cierra

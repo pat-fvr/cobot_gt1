@@ -1,5 +1,5 @@
-"""Detectores de bandeja: interfaz ``TrayDetector`` (las implementaciones vienen con ``tray_test``)."""
+"""Detectores de bandeja: interfaz ``TrayDetector`` e implementaciones; la bandeja apoyada en la mesa."""
 
-from .base import TrayDetector
+from .base import TrayDetector, tray_contains, tray_on_table
 
-__all__ = ["TrayDetector"]
+__all__ = ["TrayDetector", "tray_contains", "tray_on_table"]

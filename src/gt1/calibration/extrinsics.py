@@ -18,7 +18,7 @@ import numpy as np
 
 from gt1.geometry import FloatArray, fit_rigid_transform, homogeneous, invert_transform, transform_points
 
-from .board import BoardDetection
+from .boards import BoardDetection
 from .intrinsics import Intrinsics
 
 

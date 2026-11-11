@@ -8,7 +8,8 @@ import numpy as np
 import pytest
 
 from gt1.calibration import CalibrationStore, CameraModelProjector, HomographyProjector
-from gt1.calibration.board import BoardDetection, CharucoBoard
+from gt1.calibration.boards import BoardDetection, touch_corner_ids
+from gt1.calibration.boards.charuco import CharucoBoard
 from gt1.calibration.extrinsics import TouchPoint, fit_camera_pose, fit_homography, locate_board
 from gt1.calibration.intrinsics import Intrinsics
 from gt1.config.schemas import CharucoBoardConfig
@@ -24,7 +25,13 @@ INTRINSICS = Intrinsics(
 )
 BOARD = CharucoBoard(
     CharucoBoardConfig(
-        squares_x=9, squares_y=6, square_mm=35.0, marker_mm=26.0, dictionary="DICT_5X5_100", thickness_mm=3.0
+        kind="charuco",
+        squares_x=9,
+        squares_y=6,
+        square_mm=35.0,
+        marker_mm=26.0,
+        dictionary="DICT_5X5_100",
+        thickness_mm=3.0,
     )
 )
 BASE_FROM_BOARD = homogeneous(rotation_about_z(20.0), (380.0, 330.0, -107.0))
@@ -44,7 +51,7 @@ def synthetic_detection() -> BoardDetection:
 def touches(noise_mm: float) -> list[TouchPoint]:
     rng = np.random.default_rng(0)
     result: list[TouchPoint] = []
-    for corner_id in BOARD.touch_corner_ids().tolist():
+    for corner_id in touch_corner_ids(synthetic_detection()).tolist():
         board_point = BOARD.corner_points_mm(np.array([corner_id], dtype=np.int32))[0]
         base_point = transform_points(BASE_FROM_BOARD, board_point)[0] + rng.normal(0.0, noise_mm, 3)
         result.append(TouchPoint(corner_id=corner_id, board_point_mm=board_point, base_point_mm=base_point))

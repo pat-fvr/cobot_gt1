@@ -5,19 +5,32 @@ del robot salvo que el nombre diga otra cosa (``_px`` = píxeles de la imagen).
 """
 
 from .frame import Frame
+from .io import DigitalInput, DigitalOutput, InputPort, OutputPort
 from .pieces import Face, FaceResult, Piece, PieceStatus
-from .plan import GripperCommand, MoveJoints, MoveLinear, Plan, PlanStep, Wait
+from .plan import (
+    GripperCommand,
+    MoveJoints,
+    MoveLinear,
+    Plan,
+    PlanStep,
+    SetOutput,
+    Wait,
+    WaitForInput,
+    joined_plan,
+)
 from .pose import Pose
-from .tool import DigitalOutput, OutputPort, ToolSettings
+from .tool import ToolSettings
 from .tray import TrayDetection
 from .zone import Zone
 
 __all__ = [
+    "DigitalInput",
     "DigitalOutput",
     "Face",
     "FaceResult",
     "Frame",
     "GripperCommand",
+    "InputPort",
     "MoveJoints",
     "MoveLinear",
     "OutputPort",
@@ -26,8 +39,11 @@ __all__ = [
     "Plan",
     "PlanStep",
     "Pose",
+    "SetOutput",
     "ToolSettings",
     "TrayDetection",
     "Wait",
+    "WaitForInput",
     "Zone",
+    "joined_plan",
 ]

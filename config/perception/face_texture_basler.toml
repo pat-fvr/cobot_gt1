@@ -1,0 +1,11 @@
+# Cara por textura con la Basler scA1390 (mono, 1392 x 1040, ~0,65 mm/px en la mesa).
+# Medido el 2026-11-04 con 4 piezas (piel y hueso, sobre cartón blanco y sobre la mesa, ambos con film), a
+# 30 ms: con suavizado de 2 mm la piel da 1,6-2,0 %/mm y el hueso 4,5-4,6 %/mm. Con 1 mm (el de la C270)
+# los brillos de la piel mojada la subían a 3,3 %/mm. Con el detector por referencia (4 piezas por cara,
+# mesa con film) la piel dio 2,3-2,5 %/mm y el hueso 4,6-5,1 %/mm. POCAS MUESTRAS: confirmar con más piezas.
+# Lo usan también los programas con la acA1600 (color): la textura se mide en mm, pero POR VALIDAR con ella.
+kind = "texture"
+smoothing_mm = 2.0              # más fino, los brillos de la piel mojada cuentan como textura
+mask_erosion_mm = 5.0           # se ignora el borde de la pieza (el salto pieza-fondo no es textura)
+threshold_pct_per_mm = 3.3      # frontera piel/hueso, a mitad de camino (en proporción) entre 2,5 y 4,5
+min_margin_pct_per_mm = 0.5     # entre 2,8 y 3,8 %/mm la cara queda "incierto" y la pieza no se toma

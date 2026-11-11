@@ -1,8 +1,8 @@
 # build_face_references: muestras etiquetadas de piel y hueso, y referencias del clasificador.
 [components]
-camera = "basler_scA1390"
-piece_detector = "piece_background"
-face_classifier = "face_histogram"
+camera = "basler_acA1600"
+piece_detector = "piece_color_background"   # por color, sin escena vacía (como la webcam)
+face_classifier = "face_histogram_hsv"
 
 [settings]
 zone = "pick"

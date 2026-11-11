@@ -1,0 +1,18 @@
+# Poses del robot con nombre, en articulaciones (grados). Las escribe gt1_tools/freedrive.py: cada
+# nombre de poses_to_teach (config/tools/freedrive.toml) tiene una tecla que guarda la pose actual.
+# Los programas eligen la suya por nombre (p. ej. pose = "home" en [settings.clear_view]).
+[home]
+joints_deg = [
+    62.995,
+    -73.255,
+    -155.443,
+    -41.321,
+    89.719,
+    -181.094,
+]
+tcp_mm = [
+    301.3,
+    204.8,
+    85.2,
+]
+taught_at = "2026-11-10 16:04"

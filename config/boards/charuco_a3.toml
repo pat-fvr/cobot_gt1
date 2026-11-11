@@ -1,5 +1,6 @@
 # Tablero ChArUco para imprimir en A3 al 100 % (lo genera gt1_tools/calibrate.py, opción 0): 385 x 280 mm con margen.
 # Medir los cuadros impresos con regla: si no miden square_mm, corregir aquí.
+kind = "charuco"
 squares_x = 9
 squares_y = 6
 square_mm = 35.0

@@ -1,0 +1,31 @@
+# Soft gripper en X asimétrico, accionado por DO1: 1 = cerrado, 0 = abierto.
+# Los dedos forman una X girada 45° respecto de la brida. El TCP lleva ese giro (Rz = 45°), así el eje Y del TCP
+# corre a lo largo del gripper, entre su parte ancha y su parte angosta: las estrategias giran ese eje a la línea
+# central de la pieza.
+# La parte ancha queda hacia -Y del TCP y va hacia los lóbulos de la pechuga; la angosta, hacia +Y y la punta.
+# POR CONFIRMAR en el banco con freedrive: con el robot en una pose de toma, que el eje Y del TCP (en la tablet)
+# vaya de la parte ancha a la angosta. Si el giro de la X es -45°, cambiar el signo de Rz.
+kind = "digital_outputs"
+description = "Soft gripper en X asimétrico (ancho hacia -Y)"
+wide_side = "-y"
+
+# POR MEDIR: punta de los dedos cerrados respecto de la brida (se supuso el mismo largo que el Gorilla).
+[tcp]
+position_mm = [0.0, 0.0, 136.0]
+rotation_vector_deg = [0.0, 0.0, 45.0]
+
+# POR MEDIR: masa estimada (~0,5 kg con el soporte) y centro de gravedad supuesto a media altura.
+[payload]
+mass_kg = 0.5
+center_of_gravity_mm = [0.0, 0.0, 60.0]
+
+# POR AJUSTAR: settle_s es lo que tardan los dedos en cerrar o abrir del todo (medir con gripper_test).
+[actions.grip]
+description = "Cerrar los dedos"
+outputs = [{ port = "standard", number = 1, value = true }]
+settle_s = 0.2      # el robot espera abajo antes de bajar cerrado. 2026-11-10: 0.5 -> 0.2
+
+[actions.release]
+description = "Abrir los dedos"
+outputs = [{ port = "standard", number = 1, value = false }]
+settle_s = 0.2      # era 0.5: después de soltar en la bandeja esperaba mucho (2026-11-10)

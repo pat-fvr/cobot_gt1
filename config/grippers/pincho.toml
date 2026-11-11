@@ -2,7 +2,7 @@
 kind = "fixed"
 description = "Pincho de calibración"
 
-# POR MEDIR: en el 171 se usó un pincho de 129 mm en Z de la brida.
+# Confirmado en el banco de GT1 (2026-11-04): punta a 129 mm en Z de la brida.
 [tcp]
 position_mm = [0.0, 0.0, 129.0]
 rotation_vector_deg = [0.0, 0.0, 0.0]

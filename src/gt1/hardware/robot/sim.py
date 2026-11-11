@@ -1,7 +1,9 @@
 """Robot simulado: llega al instante a cada objetivo y recuerda sus salidas y su herramienta.
 
 Sirve para desarrollar y probar rutinas sin robot. No simula física ni
-colisiones; un gemelo digital sería otra implementación de ``Robot``.
+colisiones; un gemelo digital sería otra implementación de ``Robot``. Sus
+entradas digitales están en 0 salvo que se fijen con ``set_digital_input``
+(lo que en el banco haría un sensor).
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import threading
 import numpy as np
 
 from gt1.config.schemas import SimRobotConfig
-from gt1.domain import DigitalOutput, Pose, ToolSettings
+from gt1.domain import DigitalInput, DigitalOutput, Pose, ToolSettings
 
 from .base import Joints, MotionResult, Robot
 
@@ -24,6 +26,7 @@ class SimRobot(Robot):
         self._tcp = Pose.from_position(config.initial_tcp_mm)
         self._joints: Joints = config.initial_joints_deg
         self._outputs: dict[DigitalOutput, bool] = {}
+        self._inputs: dict[DigitalInput, bool] = {}
         self._tool = ToolSettings(
             tcp=Pose.from_position((0.0, 0.0, 0.0)), payload_kg=0.0, center_of_gravity_mm=np.zeros(3)
         )
@@ -71,6 +74,14 @@ class SimRobot(Robot):
     def digital_output(self, output: DigitalOutput) -> bool:
         self._require_connected()
         return self._outputs.get(output, False)
+
+    def digital_input(self, sensor: DigitalInput) -> bool:
+        self._require_connected()
+        return self._inputs.get(sensor, False)
+
+    def set_digital_input(self, sensor: DigitalInput, value: bool) -> None:
+        """Lo que en el banco haría un sensor: fija lo que leerá ``digital_input``."""
+        self._inputs[sensor] = value
 
     def apply_tool(self, tool: ToolSettings) -> None:
         self._require_connected()

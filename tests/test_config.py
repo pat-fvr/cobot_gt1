@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import importlib
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from gt1 import paths
-from gt1.config import ConfigError, ConfigRepository
+from gt1.config import ConfigError, ConfigRepository, save_robot_pose, taught_pose, write_robot_poses
 
 PROGRAM_SCHEMAS = {
+    ("tests", "demo_static_tray"): ("gt1_test.demo_static_tray", "DemoStaticTrayConfig"),
     ("tests", "face_test"): ("gt1_test.face_test", "FaceTestConfig"),
     ("tests", "gripper_test"): ("gt1_test.gripper_test", "GripperTestConfig"),
+    ("tests", "pick_place_test"): ("gt1_test.pick_place_test", "PickPlaceTestConfig"),
+    ("tests", "tray_loading_test"): ("gt1_test.tray_loading_test", "TrayLoadingTestConfig"),
     ("tools", "camera_viewer"): ("gt1_tools.camera_viewer", "CameraViewerConfig"),
     ("tools", "calibrate"): ("gt1_tools.calibrate", "CalibrateConfig"),
+    ("tools", "capture_empty_scene"): ("gt1_tools.capture_empty_scene", "CaptureEmptySceneConfig"),
+    ("tools", "freedrive"): ("gt1_tools.freedrive", "FreedriveConfig"),
     ("tools", "build_face_references"): ("gt1_tools.build_face_references", "BuildFaceReferencesConfig"),
     ("tools", "face_preview"): ("gt1_tools.face_preview", "FacePreviewConfig"),
     ("tools", "record_video"): ("gt1_tools.record_video", "RecordVideoConfig"),
@@ -54,10 +60,14 @@ def test_every_component_file_is_valid(repository: ConfigRepository) -> None:
         repository.tray(name)
     for name in repository.available("boards"):
         repository.board(name)
+    perception_loaders = {"piece": repository.piece_detector, "tray": repository.tray_detector}
     for name in repository.available("perception"):
-        (repository.piece_detector if name.startswith("piece_") else repository.face_classifier)(name)
+        perception_loaders.get(name.split("_")[0], repository.face_classifier)(name)
+    for name in repository.available("strategies"):
+        (repository.pick_strategy if name.startswith("pick_") else repository.place_strategy)(name)
     repository.cell()
     repository.station()
+    repository.robot_poses()
 
 
 @pytest.mark.parametrize("path", program_files(), ids=lambda path: f"{path.parent.name}/{path.stem}")
@@ -73,6 +83,10 @@ def test_every_program_file_is_valid_and_names_existing_components(
         "gripper": repository.gripper,
         "piece_detector": repository.piece_detector,
         "face_classifier": repository.face_classifier,
+        "tray_detector": repository.tray_detector,
+        "tray": repository.tray,
+        "pick_strategy": repository.pick_strategy,
+        "place_strategy": repository.place_strategy,
     }
     # Un programa sin hardware (p. ej. video_frames) no tiene [components].
     components: dict[str, str] = config.components.model_dump() if hasattr(config, "components") else {}
@@ -142,3 +156,31 @@ settle_s = 0.1
     )
     with pytest.raises(ConfigError, match="release"):
         ConfigRepository(tmp_path).gripper("g")
+
+
+def empty_poses_repository(root: Path) -> ConfigRepository:
+    write_robot_poses(root / "robot_poses.toml", {})
+    return ConfigRepository(root)
+
+
+def test_a_pose_that_was_never_taught_stops_the_program_and_says_how_to_teach_it(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match=r"'home' no está enseñada.*freedrive"):
+        empty_poses_repository(tmp_path).robot_pose("home")
+
+
+def test_a_saved_pose_is_read_back_rounded(tmp_path: Path) -> None:
+    repository = empty_poses_repository(tmp_path)
+    pose = taught_pose(
+        (10.12345, -90.00001, 90.0, -90.0, -90.0, 0.0), (500.04, -20.0, 300.0), datetime(2026, 11, 10, 15, 30)
+    )
+    assert save_robot_pose(repository, "home", pose) is None
+    loaded = repository.robot_pose("home")
+    assert loaded == pose
+    assert loaded.joints_deg[:2] == (10.123, -90.0)
+    assert loaded.tcp_mm[0] == 500.0
+    assert loaded.taught_at == "2026-11-10 15:30"
+
+
+def test_a_pose_needs_six_joints() -> None:
+    with pytest.raises(ValueError, match="joints_deg"):
+        taught_pose((0.0,) * 5, (0.0, 0.0, 0.0), datetime(2026, 11, 10))

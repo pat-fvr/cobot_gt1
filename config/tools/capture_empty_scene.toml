@@ -1,0 +1,6 @@
+# capture_empty_scene: imagen de la escena vacía para el detector de piezas por referencia.
+[components]
+camera = "basler_scA1390"
+
+[settings]
+frames_to_average = 20   # el ruido baja con la raíz: 20 imágenes lo dejan en ~1/4,5 (~3 s con la Basler)

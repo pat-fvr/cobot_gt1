@@ -1,0 +1,14 @@
+# freedrive: mover el robot a mano viendo la cámara, con la punta del TCP marcada en la imagen.
+# El gripper es el que está montado: su archivo da el TCP que se carga en el robot y se marca.
+[components]
+camera = "basler_acA1600"
+robot = "UR10e"
+gripper = "soft_x_asimetrico"
+
+[settings]
+# Poses que se enseñan en config/robot_poses.toml: la tecla 1 guarda la primera, la 2 la segunda...
+# home: robot fuera de la vista de la cámara, herramienta hacia abajo, punta más alta que safe_height_mm
+# de pick_place_test. Desde aquí capturan pick_place_test y tray_loading_test y parten a cada toma.
+# tray_drop: punta sobre la bandeja fija de demo_static_tray, contra el tope, donde suelta la pieza.
+# Tiene que quedar fuera de la vista de la cámara: desde ahí captura.
+poses_to_teach = ["home", "tray_drop"]

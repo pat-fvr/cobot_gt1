@@ -28,4 +28,8 @@ class FlipStrategy(ABC):
 class PlaceStrategy(ABC):
     @abstractmethod
     def plan(self, piece: Piece, tray: TrayDetection) -> Plan:
-        """Con la pieza tomada, hasta dejarla en la bandeja y salir de la vista de la cámara."""
+        """Con la pieza tomada, hasta dejarla en la bandeja y subir el gripper sobre ella.
+
+        Salir de la vista de la cámara es otro plan (``clear_view_plan``), que se usa también antes
+        de cada captura.
+        """

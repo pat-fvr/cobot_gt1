@@ -1,0 +1,27 @@
+# Gripper Gorilla de 4 dedos con los dedos a 10°, accionado por DO1: 1 = cerrado, 0 = abierto.
+# Lado largo a lo largo del eje Y de la brida, lado corto a lo largo de X (las estrategias giran Y al
+# eje mayor de la pieza).
+kind = "digital_outputs"
+description = "Gripper Gorilla 4 dedos, 10°"
+wide_side = "symmetric"
+
+# TCP informado al montarlo (2026-11-04): punta a 136 mm en Z de la brida, sin giro.
+[tcp]
+position_mm = [0.0, 0.0, 136.0]
+rotation_vector_deg = [0.0, 0.0, 0.0]
+
+# POR MEDIR: masa estimada (~0,5 kg con el soporte) y centro de gravedad supuesto a media altura.
+[payload]
+mass_kg = 0.5
+center_of_gravity_mm = [0.0, 0.0, 60.0]
+
+# POR AJUSTAR: settle_s es lo que tardan los dedos en cerrar o abrir del todo (medir con gripper_test).
+[actions.grip]
+description = "Cerrar los dedos"
+outputs = [{ port = "standard", number = 1, value = true }]
+settle_s = 0.5
+
+[actions.release]
+description = "Abrir los dedos"
+outputs = [{ port = "standard", number = 1, value = false }]
+settle_s = 0.5

@@ -1,4 +1,4 @@
-"""Reglas de dependencias (ver CLAUDE.md): se revisan los import de todos los archivos."""
+"""Reglas de dependencias (ver AGENTS.md): se revisan los import de todos los archivos."""
 
 from __future__ import annotations
 

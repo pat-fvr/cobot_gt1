@@ -96,7 +96,7 @@ def gripper_test(program: Program[GripperTestConfig]) -> None:
         raise ValueError(f"El gripper {components.gripper} no tiene acciones que probar.")
     outputs = tuple(
         dict.fromkeys(
-            DigitalOutput(setting.port, setting.number)
+            setting.digital_output()
             for action in gripper_config.actions.values()
             for setting in action.outputs
         )

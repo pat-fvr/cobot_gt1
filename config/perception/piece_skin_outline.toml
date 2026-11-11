@@ -1,0 +1,44 @@
+# Pechugas con la piel arriba por su contorno, sin escena vacía: sirve con cualquier fondo en que se vea el
+# borde de la pieza (mesa oscura, cartón blanco, con film, con sombras). Detecta solo la piel arriba: el lado
+# del hueso tiene más textura y no se acepta.
+# Validado el 2026-11-05 con la Basler scA1390 (30 ms) en captures/basler_scA1390/: 4 de 4 en ref_piel (mesa
+# con film, 2 en la sombra y los reflejos), 2 de 2 en escena_4_pollos (mesa oscura y cartón blanco), 0 en
+# ref_hueso y 0 en escena_bandejas_vacias. Contornos de 190-250 x 150-180 mm, textura de la piel 1,9-2,9 %/mm.
+# 2026-11-10 con la acA1600 (tests/data/basler_acA1600/escena_4_bandejas_4_pollos.png): 4 de 4, con la
+# sombra de cada pieza recortada (shadow_level_fraction); 4 de 4 en 8 copias con ruido de sensor. Con film azul
+# (tests/data/basler_acA1600/escena_film_azul.png): 3 de 3, con los lóbulos bien.
+kind = "skin_outline"
+# Los contornos se buscan en la imagen a esta escala (~1,2 mm/px con la acA1600): ~0,1 s por imagen, contra
+# ~0,4 s en la completa, con las mismas piezas y lóbulos en las 9 fotos de tests/data. A 0,4 se pierde la
+# pechuga sobre cartón de escena_4_pollos_exp30000us. Los kernels de abajo son de la imagen completa y se
+# reducen igual.
+search_scale = 0.5
+# ~8 mm: los reflejos del film y las rayas son más angostos. Con 9 (~6 mm), en la acA1600 un parche de reflejos
+# denso junto a una pechuga cerraba contorno con ella y la pechuga se perdía (en 6 de 8 capturas con ruido).
+glint_kernel_px = 13
+blur_kernel_px = 11             # suavizado antes de medir el contraste (sigma ~2 px)
+# La piel sobre la mesa oscura cierra su contorno con 3 %/mm; sobre cartón blanco (lóbulo iluminado casi del
+# brillo del cartón) recién con 1,2 %/mm, que en la mesa con film ya junta los reflejos con la pieza.
+edge_levels_pct_per_mm = [3.0, 1.8, 1.2]
+# ~13 mm. Con 11 px (~7 mm), una pechuga de la acA1600 de borde claro sobre el film claro no cerraba su
+# contorno sin bajar a 1,8 %/mm, y ahí se pegaba a los reflejos.
+outline_gap_kernel_px = 21
+morphology_kernel_px = 41       # ~25 mm: quita los bordes sueltos pegados a la pieza después de rellenarla
+# Sin la sombra de la pieza: la mesa alrededor se mide en una franja de ~9 mm; se quita lo que es más oscuro
+# que ella en más del 15 % de lo que la pieza es más clara (con la pieza más clara que la mesa).
+background_ring_px = 15
+shadow_level_fraction = 0.15
+# La pieza mide ~80 mm de alto, pero lo que la cámara ve como contorno es su parte más ancha, cerca de la
+# mesa (los costados de la pechuga bajan casi verticales y la cámara está a 1,17 m): se proyecta a 30 mm.
+contour_height_mm = 30.0
+
+min_area_mm2 = 15000.0
+max_single_piece_area_mm2 = 45000.0
+length_range_mm = [150.0, 280.0]
+width_range_mm = [110.0, 220.0]
+min_solidity = 0.9              # las pechugas midieron 0,94-0,98; las manchas de film, menos de 0,8
+
+# Textura de la superficie, como face_texture_basler: piel 1,9-2,9 %/mm, hueso 4,3-5,5 %/mm.
+skin_smoothing_mm = 2.0
+skin_mask_erosion_mm = 5.0
+max_skin_texture_pct_per_mm = 3.3

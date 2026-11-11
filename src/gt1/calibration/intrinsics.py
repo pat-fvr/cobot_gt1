@@ -16,7 +16,7 @@ from numpy.typing import ArrayLike
 
 from gt1.geometry import FloatArray, as_points
 
-from .board import BoardDetection
+from .boards import BoardDetection
 
 MIN_CORNERS_PER_VIEW = 6
 

@@ -1,13 +1,14 @@
-"""Gripper, confirmación de la estación, hilo de trabajo y registro de corridas."""
+"""Gripper, confirmación de la estación, hilo de trabajo, consola y registro de corridas."""
 
 from __future__ import annotations
 
 import json
 import logging
-import shutil
 import threading
+import time
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
@@ -24,6 +25,7 @@ from gt1.config.schemas import (
 from gt1.domain import DigitalOutput, OutputPort
 from gt1.hardware.gripper.digital_outputs import DigitalOutputGripper
 from gt1.hardware.robot.sim import SimRobot
+from gt1.runtime.console import OperatorConsole
 from gt1.runtime.run_log import RunLog
 from gt1.runtime.runner import JobRunner
 from gt1.runtime.station import StationHardware, StationNotConfirmedError, confirm_station
@@ -52,6 +54,7 @@ def two_valve_gripper(robot: SimRobot) -> DigitalOutputGripper:
         description="presión y vacío",
         tcp=TcpConfig(position_mm=(0.0, 0.0, 150.0), rotation_vector_deg=(0.0, 0.0, 0.0)),
         payload=PayloadConfig(mass_kg=1.2, center_of_gravity_mm=(0.0, 0.0, 60.0)),
+        wide_side="symmetric",
         actions={"grip": action("cerrar", True), "release": action("abrir", False)},
     )
     return DigitalOutputGripper("presion_vacio", config, robot)
@@ -76,9 +79,22 @@ def test_gripper_actions_set_their_outputs(robot: SimRobot) -> None:
         gripper.perform("girar")
 
 
+def test_an_action_whose_outputs_are_already_set_does_not_wait(
+    robot: SimRobot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gripper = two_valve_gripper(robot)
+    waits_s: list[float] = []
+    monkeypatch.setattr(time, "sleep", waits_s.append)
+    gripper.perform("release")
+    gripper.perform("release")
+    assert waits_s == [0.0]
+
+
 @pytest.fixture
 def config_dir(tmp_path: Path) -> Path:
-    shutil.copy(paths.CONFIG_DIR / "station.toml", tmp_path / "station.toml")
+    # Una estación propia y no la del repositorio: esa cambia cada vez que se monta otro hardware.
+    station = 'robot = "UR10e"\ncamera = "basler_scA1390"\ngripper = "pincho"\ntray = "bandeja_pet"\n'
+    (tmp_path / "station.toml").write_text(station, encoding="utf-8")
     return tmp_path
 
 
@@ -162,6 +178,40 @@ def test_runner_stops_a_job_and_reports_errors() -> None:
     runner.submit("fallar", fail)
     runner.wait(timeout_s=5.0)
     assert any("Error en 'fallar': se cayó" in status for status in statuses)
+
+
+def test_closing_the_window_stops_the_job_before_returning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """En el banco: cerrar con la X soltaba la cámara con la imagen en vivo todavía capturando."""
+
+    def ignore(*args: object) -> None:
+        return None
+
+    def no_key(delay_ms: int) -> int:
+        return -1
+
+    def window_closed(title: str, property_id: int) -> float:
+        return -1.0
+
+    def window_already_gone(title: str) -> None:
+        raise cv2.error("NULL window")
+
+    # Sin pantalla en los tests: la ventana aparece ya cerrada, como tras apretar la X.
+    monkeypatch.setattr(cv2, "namedWindow", ignore)
+    monkeypatch.setattr(cv2, "imshow", ignore)
+    monkeypatch.setattr(cv2, "waitKey", no_key)
+    monkeypatch.setattr(cv2, "getWindowProperty", window_closed)
+    monkeypatch.setattr(cv2, "destroyWindow", window_already_gone)
+    console = OperatorConsole("prueba")
+    started = threading.Event()
+
+    def live_view(stop: threading.Event) -> None:
+        started.set()
+        stop.wait(timeout=5.0)
+
+    console.start_job("en vivo", live_view)
+    started.wait(timeout=5.0)
+    console.run()
+    assert not console.job_running
 
 
 def test_run_log_writes_attempts_images_and_config(tmp_path: Path) -> None:

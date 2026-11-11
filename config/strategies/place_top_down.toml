@@ -1,0 +1,7 @@
+# Colocación sobre la bandeja: el gripper llega en línea recta sobre su centro, alineado con su lado largo,
+# y suelta ahí, sin bajar ni subir: después sigue directo a la pieza siguiente. POR AJUSTAR en el banco.
+travel_speed_mm_s = 1500.0      # hasta quedar sobre la bandeja (2026-11-10: 150 -> 300 -> 600 -> 1000 -> 1500)
+release_height_mm = 90.0        # punta sobre el fondo al soltar: 10 mm sobre el borde (bandeja de 80 mm)
+# Hacia dónde quedan los lóbulos en la bandeja, a lo largo de su lado largo. POR DEFINIR con Agrosuper.
+# -160° es hacia arriba en la imagen de la Basler, como llegan las piezas en las fotos: el giro es mínimo.
+lobes_toward_deg = -160.0

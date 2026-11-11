@@ -22,15 +22,13 @@ from gt1.config.schemas import TextureFaceClassifierConfig
 from gt1.domain import Face, FaceResult, Frame, Piece
 from gt1.domain.frame import Image
 from gt1.geometry import FloatArray
-from gt1.perception.image_ops import erode, polygon_mask, to_gray
+from gt1.perception.image_ops import erode, gradient_magnitude_per_px, polygon_mask, to_gray
 
 from .base import FaceClassifier
 
 # El suavizado se extiende hasta ~3 sigmas: el recorte deja ese margen para que el borde de la imagen
 # recortada no aparezca como gradiente.
 SMOOTHING_REACH_SIGMAS = 3
-# cv2.Sobel con ksize=3 pondera la diferencia entre vecinos por 8: dividir da el gradiente por píxel.
-SOBEL_3_GAIN = 8.0
 
 
 class TextureFaceClassifier(FaceClassifier):
@@ -79,7 +77,5 @@ def _crop_around(gray: Image, piece: Piece, margin_px: int) -> tuple[Image, NDAr
 
 
 def _gradient_magnitude_per_px(gray: Image, smoothing_px: float) -> FloatArray:
-    smoothed = cv2.GaussianBlur(gray.astype(np.float32), (0, 0), smoothing_px)
-    gradient_x = np.asarray(cv2.Sobel(smoothed, cv2.CV_32F, 1, 0, ksize=3), dtype=np.float64)
-    gradient_y = np.asarray(cv2.Sobel(smoothed, cv2.CV_32F, 0, 1, ksize=3), dtype=np.float64)
-    return np.hypot(gradient_x, gradient_y) / SOBEL_3_GAIN
+    smoothed = np.asarray(cv2.GaussianBlur(gray.astype(np.float32), (0, 0), smoothing_px), dtype=np.float32)
+    return gradient_magnitude_per_px(smoothed)

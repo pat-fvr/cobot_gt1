@@ -9,12 +9,35 @@ from numpy.typing import NDArray
 from gt1.calibration import PixelProjector
 from gt1.domain import Zone
 from gt1.domain.frame import Image
+from gt1.geometry import FloatArray
 
 Mask = NDArray[np.uint8]
+
+# cv2.Sobel con ksize=3 pondera la diferencia entre vecinos por 8: dividir da el gradiente por píxel.
+SOBEL_3_GAIN = 8.0
 
 
 def to_gray(image: Image) -> Image:
     return image if image.ndim == 2 else np.asarray(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), dtype=np.uint8)
+
+
+def gradient_magnitude_per_px(values: NDArray[np.float32]) -> FloatArray:
+    """Cuánto cambia el valor de cada píxel al pasar al vecino, en la dirección en que más cambia."""
+    gradient_x = np.asarray(cv2.Sobel(values, cv2.CV_32F, 1, 0, ksize=3), dtype=np.float64)
+    gradient_y = np.asarray(cv2.Sobel(values, cv2.CV_32F, 0, 1, ksize=3), dtype=np.float64)
+    return np.hypot(gradient_x, gradient_y) / SOBEL_3_GAIN
+
+
+def zone_pixels_per_mm(zone: Zone, polygon_px: NDArray[np.int32]) -> float:
+    """Escala media de la imagen en la zona: su área en píxeles contra su área en mm de la mesa."""
+    area_px = cv2.contourArea(polygon_px.reshape(-1, 1, 2).astype(np.float32))
+    area_mm2 = cv2.contourArea(zone.polygon_mm.reshape(-1, 1, 2).astype(np.float32))
+    if area_px <= 0 or area_mm2 <= 0:
+        raise ValueError(
+            f"La zona '{zone.name}' no tiene área en la imagen: revisar su polígono en cell.toml y la "
+            "calibración de la cámara."
+        )
+    return float(np.sqrt(area_px / area_mm2))
 
 
 def zone_polygon_px(zone: Zone, projector: PixelProjector) -> NDArray[np.int32]:

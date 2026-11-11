@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import threading
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from enum import StrEnum
 from types import TracebackType
 from typing import Self
 
-from gt1.domain import DigitalOutput, Pose, ToolSettings
+from gt1.domain import DigitalInput, DigitalOutput, MoveLinear, Pose, ToolSettings
 
 Joints = tuple[float, float, float, float, float, float]
 
@@ -48,6 +49,18 @@ class Robot(ABC):
     def move_linear(self, target: Pose, speed_mm_s: float, stop: threading.Event) -> MotionResult:
         """Lleva la punta en línea recta a ``target``. Vuelve al llegar o al activarse ``stop``."""
 
+    def move_linear_path(self, moves: Sequence[MoveLinear], stop: threading.Event) -> MotionResult:
+        """Movimientos rectos seguidos: pasa en curva por cada punto con su ``blend_radius_mm`` y se detiene
+        en el último. Vuelve al llegar o al activarse ``stop``.
+
+        Esta versión los hace de a uno, deteniéndose en cada punto: basta para los robots simulados. Un robot
+        real la reemplaza por una trayectoria sin paradas.
+        """
+        for move in moves:
+            if self.move_linear(move.target, move.speed_mm_s, stop) == MotionResult.STOPPED:
+                return MotionResult.STOPPED
+        return MotionResult.COMPLETED
+
     @abstractmethod
     def move_joints(self, joints_deg: Joints, speed_deg_s: float, stop: threading.Event) -> MotionResult:
         """Movimiento articular a ``joints_deg``. Vuelve al llegar o al activarse ``stop``."""
@@ -57,6 +70,9 @@ class Robot(ABC):
 
     @abstractmethod
     def digital_output(self, output: DigitalOutput) -> bool: ...
+
+    @abstractmethod
+    def digital_input(self, sensor: DigitalInput) -> bool: ...
 
     @abstractmethod
     def apply_tool(self, tool: ToolSettings) -> None:

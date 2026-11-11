@@ -3,8 +3,15 @@
 Es el único módulo que habla con el robot real. ur_rtde trabaja en metros y
 radianes; la conversión a mm y grados se hace solo aquí.
 
+Los movimientos no consultan antes ``isPoseWithinSafetyLimits`` ni
+``isJointsWithinSafetyLimits``: en el banco (2026-11-10) rechazaban cargas sin
+mover el robot. Los límites los sigue aplicando la configuración de seguridad
+del controlador: si un movimiento los pasa, el robot se detiene (parada de
+protección) y ``_wait_motion`` lo informa.
+
 Conexiones RTDE:
-    receive   al conectar. Solo lectura: funciona también con la consola en modo local.
+    receive   al conectar. Solo lectura (también de las entradas digitales): funciona también con la
+              consola en modo local.
     control   con el primer movimiento, cambio de herramienta o freedrive. Requiere el robot en
               modo remoto y toma el control: la consola no puede mover el robot hasta desconectar.
     io        con el primer cambio de una salida digital.
@@ -18,20 +25,22 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 
 from gt1.config.schemas import UrRtdeRobotConfig
-from gt1.domain import DigitalOutput, OutputPort, Pose, ToolSettings
+from gt1.domain import DigitalInput, DigitalOutput, InputPort, MoveLinear, OutputPort, Pose, ToolSettings
 from gt1.geometry import rotation_from_vector, vector_from_rotation
 
 from .base import Joints, MotionResult, Robot
 
 logger = logging.getLogger(__name__)
 
-# Primer bit de cada grupo de salidas en getDigitalOutState.
+# Primer bit de cada grupo de salidas en getDigitalOutState y de entradas en getDigitalInState.
 _OUTPUT_FIRST_BIT = {OutputPort.STANDARD: 0, OutputPort.CONFIGURABLE: 8, OutputPort.TOOL: 16}
+_INPUT_FIRST_BIT = {InputPort.STANDARD: 0, InputPort.CONFIGURABLE: 8, InputPort.TOOL: 16}
 _OUTPUT_SETTER = {
     OutputPort.STANDARD: "setStandardDigitalOut",
     OutputPort.CONFIGURABLE: "setConfigurableDigitalOut",
@@ -90,18 +99,31 @@ class UrRtdeRobot(Robot):
     def move_linear(self, target: Pose, speed_mm_s: float, stop: threading.Event) -> MotionResult:
         control = self._require_control()
         pose = _pose_to_ur(target)
-        if not control.isPoseWithinSafetyLimits(pose):
-            raise RuntimeError(f"Pose fuera de los límites de seguridad del robot: {target.describe()}.")
         self._last_motion_was_linear = True
         if not control.moveL(pose, speed_mm_s / 1000.0, self._config.linear_accel_mm_s2 / 1000.0, True):
             raise RuntimeError(f"El robot rechazó el movimiento a {target.describe()}.")
         return self._wait_motion(stop)
 
+    def move_linear_path(self, moves: Sequence[MoveLinear], stop: threading.Event) -> MotionResult:
+        """Una sola trayectoria (moveL con una lista de puntos): el robot pasa en curva por cada punto con
+        radio sin detenerse. El controlador exige radio cero en el último punto."""
+        control = self._require_control()
+        accel_m_s2 = self._config.linear_accel_mm_s2 / 1000.0
+        path: list[list[float]] = []
+        for index, move in enumerate(moves):
+            pose = _pose_to_ur(move.target)
+            is_last = index == len(moves) - 1
+            blend_m = 0.0 if is_last else move.blend_radius_mm / 1000.0
+            path.append([*pose, move.speed_mm_s / 1000.0, accel_m_s2, blend_m])
+        self._last_motion_was_linear = True
+        if not control.moveL(path, True):
+            targets = ", ".join(move.target.describe() for move in moves)
+            raise RuntimeError(f"El robot rechazó la trayectoria por {targets}.")
+        return self._wait_motion(stop)
+
     def move_joints(self, joints_deg: Joints, speed_deg_s: float, stop: threading.Event) -> MotionResult:
         control = self._require_control()
         q = np.radians(np.asarray(joints_deg, dtype=np.float64)).tolist()
-        if not control.isJointsWithinSafetyLimits(q):
-            raise RuntimeError(f"Articulaciones fuera de los límites de seguridad: {joints_deg}.")
         self._last_motion_was_linear = False
         accel = np.radians(self._config.joint_accel_deg_s2)
         if not control.moveJ(q, np.radians(speed_deg_s), accel, True):
@@ -117,6 +139,10 @@ class UrRtdeRobot(Robot):
     def digital_output(self, output: DigitalOutput) -> bool:
         bit = _OUTPUT_FIRST_BIT[output.port] + output.number
         return bool(self._require_receive().getDigitalOutState(bit))
+
+    def digital_input(self, sensor: DigitalInput) -> bool:
+        bit = _INPUT_FIRST_BIT[sensor.port] + sensor.number
+        return bool(self._require_receive().getDigitalInState(bit))
 
     def apply_tool(self, tool: ToolSettings) -> None:
         control = self._require_control()
@@ -166,8 +192,29 @@ class UrRtdeRobot(Robot):
             if stop.is_set():
                 self._stop()
                 return MotionResult.STOPPED
+            halt = self._halt_reason()
+            if halt:
+                raise RuntimeError(
+                    f"El robot se detuvo antes de llegar: {halt}. Revisar el robot y su entorno, liberar "
+                    "la parada en la consola y volver a iniciar el programa."
+                )
             time.sleep(self._config.poll_period_s)
         return MotionResult.COMPLETED
+
+    def _halt_reason(self) -> str:
+        """Por qué el robot dejó de moverse sin que se lo pidieran, o "" si sigue en marcha.
+
+        Con una parada de protección o de emergencia el controlador corta el programa de ur_rtde y el
+        progreso del movimiento queda congelado: sin esta revisión la espera no terminaría nunca.
+        """
+        receive = self._require_receive()
+        if receive.isProtectiveStopped():
+            return "parada de protección (choque o límite de seguridad)"
+        if receive.isEmergencyStopped():
+            return "parada de emergencia"
+        if not self._require_control().isProgramRunning():
+            return "el programa de control del robot se detuvo (¿se paró desde la consola?)"
+        return ""
 
     def _stop(self) -> None:
         if self._last_motion_was_linear:

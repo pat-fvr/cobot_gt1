@@ -1,0 +1,25 @@
+# Basler ace acA1600-60gc (color, 1600 x 1200, GigE) a través del SDK MVS.
+kind = "mvs"
+camera_id = "basler_acA1600"
+ip = "150.0.24.23"
+
+# Si no coinciden, al conectar el programa se detiene y muestra lo que informa la cámara.
+expected_model = "acA1600-60gc"
+expected_serial = "24113328"
+
+first_frame_timeout_ms = 5000
+frame_timeout_ms = 1000
+max_incomplete_frames = 10
+
+# Nodos GenICam que se fijan al conectar (se aplican en este orden).
+# PixelFormat: de fábrica viene en YUV422Packed (2 bytes/píxel, limita las imágenes/s por GigE);
+# BayerRG8 usa 1 byte/píxel y el SDK lo convierte a BGR.
+# Exposición en múltiplos de 10 ms para que la luz de 50 Hz no haga variar el brillo entre imágenes.
+# POR AJUSTAR con la tapa del lente quitada: ExposureTimeAbs (10 a 840000 µs) y GainRaw (0 a 95,
+# 0 = menos ruido). El balance de blancos queda como lo tenga guardado la cámara (BalanceWhiteAuto Off).
+genicam_nodes = { PixelFormat = "BayerRG8", ExposureTimeAbs = 30000.0, GainRaw = 0 }
+
+# Calibrada el 2026-11-10 con la placa Cognex (calibration/basler_acA1600/): lente 0,10 px con 12 vistas,
+# toques 0,63 mm. camera_model (recomendado) u homography; ver gt1_tools/calibrate.py.
+[calibration]
+method = "camera_model"

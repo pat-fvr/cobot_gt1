@@ -34,6 +34,10 @@ class Piece:
 
     El contorno está en píxeles (para dibujar y para la máscara de la imagen);
     el resto, en mm en la base del robot, a la altura del contorno.
+
+    El eje mayor es la línea central que separa los dos lóbulos cuando el
+    detector la mide (``lobes_direction_deg`` no es None); si no, el eje del
+    rectángulo que encierra el contorno.
     """
 
     contour_px: NDArray[np.int32]  # (N, 2)
@@ -43,6 +47,9 @@ class Piece:
     width_mm: float  # ancho perpendicular al eje mayor
     area_mm2: float
     status: PieceStatus
+    # Sentido del eje mayor desde la punta hacia los lóbulos, en [-180, 180); None si el detector no
+    # distingue los extremos.
+    lobes_direction_deg: float | None
 
 
 @dataclass(frozen=True)
