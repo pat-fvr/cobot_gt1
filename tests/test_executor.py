@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Sequence
 
 import pytest
@@ -15,11 +16,13 @@ from gt1.domain import (
     InputPort,
     MoveJoints,
     MoveLinear,
+    MoveVertical,
     OutputPort,
     Plan,
     Pose,
     SetOutput,
     WaitForInput,
+    WaitForOutput,
     joined_plan,
 )
 from gt1.hardware.gripper.digital_outputs import DigitalOutputGripper
@@ -172,3 +175,40 @@ def test_a_stop_ends_the_wait_for_an_input_that_never_turns_on() -> None:
         assert execution.outcome == PlanOutcome.STOPPED
         assert execution.steps_completed == 0
         assert not robot.digital_output(DO3)
+
+
+def test_a_vertical_move_changes_only_the_height_of_the_tool_from_where_it_is() -> None:
+    start = Pose.from_rotation_vector_deg((400.0, 200.0, 50.0), (180.0, 0.0, 30.0))
+    plan = Plan(
+        name="subir",
+        steps=(MoveLinear(start, 100.0, "a la bandeja"), MoveVertical(90.0, 50.0, "subir en vertical")),
+    )
+    with SimRobot(SIM) as robot:
+        execution = PlanExecutor(robot, DigitalOutputGripper("g", GRIPPER, robot)).execute(
+            plan, threading.Event()
+        )
+        assert execution.outcome == PlanOutcome.COMPLETED
+        assert robot.tcp_pose().position_mm == pytest.approx([400.0, 200.0, 90.0])
+        assert robot.tcp_pose().rotation == pytest.approx(start.rotation)
+
+
+def test_waits_for_an_output_that_another_thread_turns_on() -> None:
+    plan = Plan(name="esperar", steps=(WaitForOutput(DO3, True, "esperar DO3"),))
+    with SimRobot(SIM) as robot:
+        timer = threading.Timer(0.1, robot.set_digital_output, (DO3, True))
+        timer.start()
+        execution = PlanExecutor(robot, DigitalOutputGripper("g", GRIPPER, robot)).execute(
+            plan, threading.Event()
+        )
+        timer.cancel()
+        assert execution.outcome == PlanOutcome.COMPLETED
+
+
+def test_the_executor_knows_since_when_the_robot_is_still() -> None:
+    with SimRobot(SIM) as robot:
+        executor = PlanExecutor(robot, DigitalOutputGripper("g", GRIPPER, robot))
+        assert executor.still_since_s is None  # no lo movió: no sabe
+        before_s = time.monotonic()
+        executor.execute(PICK_LIKE, threading.Event())
+        assert executor.still_since_s is not None
+        assert executor.still_since_s >= before_s

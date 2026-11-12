@@ -32,6 +32,20 @@ class MoveLinear:
 
 
 @dataclass(frozen=True)
+class MoveVertical:
+    """Movimiento recto y vertical de la punta, desde donde esté al empezarlo, hasta la altura ``z_mm`` (en la
+    base), sin cambiar su orientación.
+
+    Una estrategia es pura y no sabe dónde va a estar el robot: el ejecutor lee la posición al llegar a
+    este paso.
+    """
+
+    z_mm: float
+    speed_mm_s: float
+    description: str
+
+
+@dataclass(frozen=True)
 class MoveJoints:
     """Movimiento articular a ``joints_deg`` (base, hombro, codo, muñeca 1, 2, 3)."""
 
@@ -75,7 +89,22 @@ class WaitForInput:
     description: str
 
 
-PlanStep = MoveLinear | MoveJoints | GripperCommand | Wait | SetOutput | WaitForInput
+@dataclass(frozen=True)
+class WaitForOutput:
+    """Esperar, con el robot quieto, a que una salida digital valga ``value``: la cambia otro (p. ej. el tope,
+    que lo cierra ``TrayStopper`` en segundo plano cuando sale la bandeja cargada).
+
+    No tiene tiempo máximo: espera hasta que llegue o se pida la parada.
+    """
+
+    output: DigitalOutput
+    value: bool
+    description: str
+
+
+PlanStep = (
+    MoveLinear | MoveVertical | MoveJoints | GripperCommand | Wait | SetOutput | WaitForInput | WaitForOutput
+)
 
 
 @dataclass(frozen=True)

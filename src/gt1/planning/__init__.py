@@ -7,9 +7,11 @@ from .clear_view import clear_view_plan
 from .grasp import grasp_tool_y_deg
 from .top_down_pick import TopDownPick
 from .top_down_place import TopDownPlace
-from .tray_station import tray_station_drop_plan
+from .tray_station import STOPPER_CLOSED, TRAY_PRESENT, tray_station_drop_plan
 
 __all__ = [
+    "STOPPER_CLOSED",
+    "TRAY_PRESENT",
     "FlipStrategy",
     "PickStrategy",
     "PlaceStrategy",

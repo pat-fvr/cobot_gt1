@@ -4,23 +4,51 @@ camera = "basler_acA1600"
 robot = "UR10e"
 gripper = "soft_x_asimetrico"
 piece_detector = "piece_skin_outline"   # solo piel arriba, sin escena vacía
-pick_strategy = "pick_top_down"
 
 [settings]
-pick_zone = "pick"              # mitad superior de la imagen
+pick_zone = "pick"              # la plataforma (zona de cell.toml): no la cinta, por donde sale la bandeja
+                                # cargada mientras el robot captura; "full_view": toda la imagen
 # De izquierda a derecha en la imagen de la acA1600 (su calibración del 2026-11-10): casi +Y de la base.
 left_to_right_deg = 110.5
 pick_from = "left"              # "right": se toma primero la de más a la derecha
 
+# La toma desde arriba (como config/strategies/pick_top_down.toml, aquí para verla junto al resto). Alturas
+# de la punta (TCP) sobre la plataforma (table_z_mm de cell.toml).
+#
+# Velocidades: se suben de a un escalón, probando cada uno en el banco, hasta las de pick_top_down y
+# pick_place_test (la última columna). Todas las del mismo escalón juntas:
+#                        segura  1       2       3       pick_top_down
+#   travel_speed_mm_s    100     300     600     1000    1500
+#   descend_speed_mm_s   30      100     200     350     500
+#   rise_speed_mm_s      30      100     200     300     400
+#   clear_speed_deg_s    10      30      60      90      120
+# 2026-11-12: segura probada en el banco -> escalón 1 probado -> escalón 2 probado -> escalón 3 probado ->
+# las de pick_top_down.
+[settings.pick]
+travel_speed_mm_s = 1500.0      # a la altura de llegada, hasta quedar sobre la pieza
+approach_height_mm = 90.0       # primero en vertical a esta altura, desde donde esté; a ella viaja
+                                # hasta quedar sobre la pieza, se detiene y baja
+grasp_height_mm = 0.0           # al cerrar el gripper: la punta de los dedos tocando la plataforma (blandos)
+after_grip_descent_mm = 38.0    # cuánto baja después de cerrar el gripper: los dedos se recogen al cerrar, y
+                                # bajar los mete bajo la pieza (con 50 chocó con la mesa: C153A1, 2026-11-10)
+lift_height_mm = 20.0           # con la pieza tomada sube hasta aquí y va a la bandeja (2026-11-12: 90;
+                                # pick_top_down sigue en 90 por el borde de las bandejas en la mesa)
+descend_speed_mm_s = 500.0      # en vertical: a la altura de llegada, a la pieza y al subir con ella
+blend_radius_mm = 25.0          # curva al terminar de subir con la pieza: empieza a avanzar 25 mm antes
+                                # de llegar arriba (sobre la pieza se detiene siempre antes de bajar)
+
 # La pose de soltar sobre la bandeja fija; queda fuera de la vista de la cámara y desde ella se captura.
 [settings.clear_view]
 pose = "tray_drop"              # de robot_poses.toml, POR ENSEÑAR con gt1_tools/freedrive.py (tecla 2)
-safe_height_mm = 200.0          # al ir a soltar, la punta sube en vertical hasta aquí si está más baja
-rise_speed_mm_s = 400.0
-clear_speed_deg_s = 120.0       # hasta la pose de soltar: el máximo de la base y el hombro del UR10e
+safe_height_mm = 20.0           # al ir a soltar, la punta sube en vertical hasta aquí si está más baja:
+                                # igual que lift_height_mm de la toma, para no subir más (2026-11-12: 200)
+rise_speed_mm_s = 400.0         # como pick_top_down (ver la tabla de velocidades en [settings.pick])
+clear_speed_deg_s = 120.0       # hasta la pose de soltar, como pick_place_test: el máximo de la base y el
+                                # hombro del UR10e
 capture_settle_s = 0.5          # desde que llega hasta capturar: vibración y la imagen en camino
 
 [settings.tray_station]
-stopper = { port = "standard", number = 3 }       # DO3: 1 cerrado (detiene la bandeja), 0 abierto
-tray_sensor = { port = "standard", number = 1 }   # DI1: 1 con una bandeja en el tope
-stopper_open_s = 3.0            # después de soltar, el tope queda abierto este tiempo y se cierra
+stopper = { port = "standard", number = 2 }       # DO2: 1 cerrado (detiene la bandeja), 0 abierto
+tray_sensor = { port = "standard", number = 1 }   # DI1: 1 con una bandeja en el tope; al soltar, el tope
+                                                  # se abre y se cierra después de que pasa a 0
+stopper_close_delay_s = 1.0     # desde que DI1 pasa a 0 hasta cerrar el tope: que la bandeja termine de pasar

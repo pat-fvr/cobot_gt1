@@ -1,19 +1,25 @@
 # Cómo está armado el banco de pruebas. Si se mueve la mesa, la cámara o una zona, se cambia solo este archivo.
 # Coordenadas en mm en el sistema de la base del robot.
 
-# Superficie de la mesa, de la calibración cámara-robot del 2026-11-10 con la acA1600 (placa Cognex tocada
-# en 5 esquinas: superficie de la placa en Z=-110,0 menos sus 10 mm de espesor; el 2026-11-04 dio -119,9).
-# La placa no queda a nivel: sus esquinas van de Z=-106,2 a -113,4 mm.
-table_z_mm = -120.0
+# Superficie donde están las pechugas: la plataforma azul, de la calibración cámara-robot del 2026-11-12 con
+# la acA1600 (superficie de la placa Cognex en Z=-12,6 menos sus 10 mm de espesor). Antes era la mesa, en
+# Z=-120 (calibración del 2026-11-10): la bandeja de demo_static_tray sigue abajo, en la mesa.
+# Al recalibrar sobre otra superficie, poner aquí la mesa que informa calibrate: con la de la mesa y las
+# piezas en la plataforma, la toma viajó bajo la superficie de la plataforma y chocó (2026-11-12).
+table_z_mm = -22.6
 
 # La pose del robot fuera de la vista de la cámara, desde la que se captura, es "home" en robot_poses.toml.
 
-# Zonas: polígonos (X, Y) en orden. pick y tray son las mitades superior e inferior de la imagen de la
-# acA1600 (píxeles x 15-1585; y 15-590 e y 610-1185) proyectadas a la mesa con su calibración del
-# 2026-11-10: las pechugas se dejan arriba en la imagen y las bandejas abajo.
+# Zonas: polígonos (X, Y) en orden.
+# pick: la plataforma azul, en la acA1600 los píxeles x 15-1585, y 200-660 proyectados a table_z_mm con su
+# calibración del 2026-11-12 (la plataforma está en y ~285-600; el margen deja entera una pechuga que en la
+# imagen sobresale del borde). Deja fuera la cinta y la bandeja, abajo: demo_static_tray captura mientras la
+# bandeja cargada todavía sale, y no debe ver tomable la pechuga que va en ella.
+# tray: la mitad inferior de la imagen (píxeles x 15-1585, y 610-1185) proyectada a la mesa con la
+# calibración del 2026-11-10, con las bandejas sobre la mesa (POR REHACER con la plataforma y la cinta).
 # flip_landing sigue siendo el valor de partida del 171 (no hay estación de volteo en el banco).
 [zones.pick]
-polygon_mm = [[382.0, -157.0], [-13.0, 872.0], [406.0, 963.0], [753.0, 34.0]]
+polygon_mm = [[553.0, -38.0], [200.0, 868.0], [490.0, 937.0], [812.0, 96.0]]
 
 [zones.tray]
 polygon_mm = [[764.0, 40.0], [419.0, 966.0], [764.0, 1057.0], [1082.0, 187.0]]

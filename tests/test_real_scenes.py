@@ -32,6 +32,7 @@ import pytest
 
 from gt1 import paths
 from gt1.config.loading import ConfigRepository
+from gt1.config.schemas import ZoneConfig
 from gt1.domain import Frame, Piece, TrayDetection
 from gt1.geometry import wrap_angle_deg, wrap_axis_angle_deg
 from gt1.perception.image_ops import full_view_zone
@@ -43,7 +44,18 @@ MONO = "basler_scA1390"
 COLOR = "basler_acA1600"
 CAMERA = REPOSITORY.camera(MONO)
 PROJECTOR = factories.build_projector(CAMERA)
-CELL = REPOSITORY.cell()
+# Las fotos son de las piezas y bandejas sobre la mesa, en Z=-120; cell.toml sigue al banco, que desde el
+# 2026-11-12 tiene las piezas sobre una plataforma.
+PHOTOS_TABLE_Z_MM = -120.0
+# La zona de toma de entonces: la mitad superior de la imagen de la acA1600 (calibración del 2026-11-10).
+PHOTOS_PICK_ZONE = ZoneConfig(polygon_mm=((382.0, -157.0), (-13.0, 872.0), (406.0, 963.0), (753.0, 34.0)))
+_BENCH = REPOSITORY.cell()
+CELL = _BENCH.model_copy(
+    update={
+        "table_z_mm": PHOTOS_TABLE_Z_MM,
+        "zones": _BENCH.zones.model_copy(update={"pick": PHOTOS_PICK_ZONE}),
+    }
+)
 # Centros de bandeja medidos a mano en vistas cenitales (±5 mm): el detector los da corridos hasta ~12 mm
 # hacia +Y de la base (POR REVISAR: la calibración a la altura del borde o el tamaño del fondo).
 TRAY_CENTER_TOLERANCE_MM = 13.0

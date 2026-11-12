@@ -34,9 +34,7 @@ def clear_view_plan(
     if is_at_pose(current_joints_deg, clear_joints_deg):
         return Plan(name="salir de la vista", steps=())
     if current_tcp.position_mm[2] < safe_z_mm:
-        raised_mm = current_tcp.position_mm.copy()
-        raised_mm[2] = safe_z_mm
-        steps.append(MoveLinear(Pose(raised_mm, current_tcp.rotation), rise_speed_mm_s, "subir en vertical"))
+        steps.append(MoveLinear(current_tcp.at_height(safe_z_mm), rise_speed_mm_s, "subir en vertical"))
     steps.append(MoveJoints(clear_joints_deg, joint_speed_deg_s, f"a la pose '{pose_name}'"))
     return Plan(name="salir de la vista", steps=tuple(steps))
 

@@ -1,12 +1,15 @@
 """Captura con el robot fuera de la vista: lo lleva a una pose enseñada y captura con él quieto.
 
 Se decide siempre con imágenes en que el robot no tapa la escena ni la mueve:
-la imagen es posterior a la llegada y a la espera de ``capture_settle_s``.
+la imagen es posterior a la llegada y a la espera de ``capture_settle_s``. Si el
+robot ya estaba quieto (p. ej. soltando en la bandeja fija, que es la pose de
+captura), solo se espera lo que falta de ese tiempo.
 """
 
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 
 from gt1.config.schemas import ClearViewSettings, RobotPoseConfig
@@ -52,10 +55,17 @@ class ClearViewCamera:
         """Lleva el robot fuera de la vista y captura con él quieto; None si no llegó o se detuvo."""
         if not self.move_clear(stop):
             return None
-        frame = capture_still(self._camera, self._settings.capture_settle_s, stop)
+        frame = capture_still(self._camera, self._settle_left_s(), stop)
         if frame is None:
             self._report("Captura detenida por el operador.")
         return frame
+
+    def _settle_left_s(self) -> float:
+        """Lo que falta de ``capture_settle_s`` desde que el robot quedó quieto; todo, si no se sabe."""
+        still_since_s = self._executor.still_since_s
+        if still_since_s is None:
+            return self._settings.capture_settle_s
+        return max(0.0, self._settings.capture_settle_s - (time.monotonic() - still_since_s))
 
     def plan_from_here(self) -> Plan:
         """El plan para llegar a la pose fuera de la vista desde donde está el robot ahora (sin capturar)."""

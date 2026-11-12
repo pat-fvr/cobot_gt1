@@ -11,11 +11,13 @@ from .plan import (
     GripperCommand,
     MoveJoints,
     MoveLinear,
+    MoveVertical,
     Plan,
     PlanStep,
     SetOutput,
     Wait,
     WaitForInput,
+    WaitForOutput,
     joined_plan,
 )
 from .pose import Pose
@@ -33,6 +35,7 @@ __all__ = [
     "InputPort",
     "MoveJoints",
     "MoveLinear",
+    "MoveVertical",
     "OutputPort",
     "Piece",
     "PieceStatus",
@@ -44,6 +47,7 @@ __all__ = [
     "TrayDetection",
     "Wait",
     "WaitForInput",
+    "WaitForOutput",
     "Zone",
     "joined_plan",
 ]

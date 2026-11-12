@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ from gt1.config.schemas import (
 )
 from gt1.domain import DigitalOutput, Frame, InputPort, OutputPort, Zone
 from gt1.domain.frame import Image
+from gt1.hardware.camera import Camera
 from gt1.hardware.gripper.digital_outputs import DigitalOutputGripper
 from gt1.hardware.robot.sim import SimRobot
 from gt1.perception.pieces.skin_outline import SkinOutlinePieceDetector
@@ -37,6 +39,7 @@ from gt1.runtime.clear_view import ClearViewCamera
 from gt1.runtime.console import OperatorConsole
 from gt1.runtime.executor import PlanExecutor
 from gt1.runtime.run_log import RunLog
+from gt1.runtime.tray_stopper import TrayStopper
 
 from . import scenes
 from .fakes import DO1_GRIPPER, SequenceCamera, TrayConveyorRobot
@@ -49,9 +52,18 @@ PICK_POLYGON = [[5.0, 5.0], [895.0, 5.0], [895.0, 395.0], [5.0, 395.0]]
 LEFT_BREAST_PX, RIGHT_BREAST_PX = (250.0, 200.0), (650.0, 200.0)
 
 STATION = TrayStationSettings(
-    stopper=OutputChannel(port=OutputPort.STANDARD, number=3),
+    stopper=OutputChannel(port=OutputPort.STANDARD, number=2),
     tray_sensor=InputChannel(port=InputPort.STANDARD, number=1),
-    stopper_open_s=0.01,  # lo más corto que acepta: la prueba no espera
+    stopper_close_delay_s=0.0,
+)
+PICK = TopDownPickConfig(
+    travel_speed_mm_s=150.0,
+    approach_height_mm=80.0,
+    grasp_height_mm=0.0,
+    after_grip_descent_mm=30.0,
+    lift_height_mm=80.0,
+    descend_speed_mm_s=50.0,
+    blend_radius_mm=30.0,
 )
 SETTINGS = Settings(
     pick_zone="pick",
@@ -64,6 +76,7 @@ SETTINGS = Settings(
         clear_speed_deg_s=30.0,
         capture_settle_s=0.0,
     ),
+    pick=PICK,
     tray_station=STATION,
 )
 SIM = SimRobotConfig(
@@ -96,9 +109,17 @@ def run_log(tmp_path: Path) -> Iterator[RunLog]:
     log.close()
 
 
-def run_demo(robot: SimRobot, camera: SequenceCamera, run_log: RunLog, stop: threading.Event) -> None:
-    """Aprieta 'p': carga hasta que no queden piezas o se active ``stop``."""
-    with robot:
+def run_demo(
+    robot: SimRobot,
+    camera: Camera,
+    run_log: RunLog,
+    stop: threading.Event,
+    station: TrayStationSettings = STATION,
+) -> None:
+    """Arranca el programa (cierra el tope) y aprieta 'p': carga hasta que no queden piezas o se active
+    ``stop``. Vuelve con la última bandeja cargada ya fuera y el tope cerrado."""
+    with robot, TrayStopper(robot, station) as stopper:
+        stopper.close_and_verify()
         executor = PlanExecutor(robot, DigitalOutputGripper("g", DO1_GRIPPER, robot))
         console = OperatorConsole("prueba")
         demo = StaticTrayDemo(
@@ -114,21 +135,10 @@ def run_demo(robot: SimRobot, camera: SequenceCamera, run_log: RunLog, stop: thr
                 report=console.set_status,
             ),
             executor=executor,
-            pick=TopDownPick(
-                TopDownPickConfig(
-                    travel_speed_mm_s=150.0,
-                    approach_height_mm=80.0,
-                    grasp_height_mm=0.0,
-                    after_grip_descent_mm=30.0,
-                    lift_height_mm=80.0,
-                    descend_speed_mm_s=50.0,
-                    blend_radius_mm=30.0,
-                ),
-                0.0,
-                "-y",
-            ),
+            pick=TopDownPick(PICK, 0.0, "-y"),
             wide_side="-y",
-            drop=tray_station_drop_plan(STATION),
+            drop=tray_station_drop_plan(station),
+            stopper=stopper,
             perception=perception(),
             projector=PROJECTOR,
             settings=SETTINGS,
@@ -136,10 +146,28 @@ def run_demo(robot: SimRobot, camera: SequenceCamera, run_log: RunLog, stop: thr
             run_log=run_log,
         )
         demo.run(stop)
+        # La última bandeja cargada sale en segundo plano: se espera a que el tope vuelva a cerrarse.
+        deadline_s = time.monotonic() + 2.0
+        while not robot.digital_output(station.stopper.digital_output()) and time.monotonic() < deadline_s:
+            time.sleep(0.01)
 
 
-def conveyor_robot() -> TrayConveyorRobot:
-    return TrayConveyorRobot(SIM, STATION.stopper.digital_output(), STATION.tray_sensor.digital_input())
+def conveyor_robot(station: TrayStationSettings = STATION) -> TrayConveyorRobot:
+    return TrayConveyorRobot(SIM, station.stopper.digital_output(), station.tray_sensor.digital_input())
+
+
+class StopperWatchingCamera(SequenceCamera):
+    """Anota, en cada captura, si el tope estaba cerrado."""
+
+    def __init__(self, images: Sequence[Image], robot: SimRobot, stopper: DigitalOutput) -> None:
+        super().__init__(images)
+        self._robot = robot
+        self._stopper = stopper
+        self.stopper_closed_at_capture: list[bool] = []
+
+    def capture(self) -> Frame:
+        self.stopper_closed_at_capture.append(self._robot.digital_output(self._stopper))
+        return super().capture()
 
 
 def records(run_log: RunLog) -> list[Any]:
@@ -164,6 +192,20 @@ def test_loads_every_breast_from_left_to_right_one_tray_each_until_none_is_left(
         assert robot.joints_deg() == DROP_JOINTS_DEG
         assert robot.digital_output(STATION.stopper.digital_output())  # cerrado para la siguiente
         assert not robot.digital_output(GRIPPER_OUTPUT)
+
+
+def test_after_releasing_it_captures_the_next_piece_while_the_loaded_tray_goes_out(run_log: RunLog) -> None:
+    """2026-11-12: el robot esperaba quieto ~3,7 s a que saliera la bandeja y se cerrara el tope."""
+    station = STATION.model_copy(update={"stopper_close_delay_s": 0.3})
+    robot = conveyor_robot(station)
+    images = [scene([LEFT_BREAST_PX, RIGHT_BREAST_PX]), scene([RIGHT_BREAST_PX]), scene([])]
+    camera = StopperWatchingCamera(images, robot, station.stopper.digital_output())
+    run_demo(robot, camera, run_log, threading.Event(), station)
+
+    assert [load["outcome"] for load in records(run_log)] == ["cargada", "cargada"]
+    # La primera, al empezar; las siguientes, apenas soltó: la bandeja cargada todavía está saliendo.
+    assert camera.stopper_closed_at_capture == [True, False, False]
+    assert robot.trays_released == 2
 
 
 def test_waits_for_the_tray_with_the_piece_held_until_stopped(run_log: RunLog) -> None:

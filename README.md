@@ -154,7 +154,9 @@ src/gt1/                       biblioteca (las capas y sus reglas están en AGEN
     factories.py               construye cada componente según su kind (y la bandeja fija)
     executor.py                PlanExecutor: lleva a cabo un Plan paso por paso; se corta limpio
     captures.py                captura con el robot quieto, escena vacía
-    clear_view.py              ClearViewCamera: lleva el robot fuera de la vista y captura
+    clear_view.py              ClearViewCamera: lleva el robot fuera de la vista y captura (sin repetir
+                               la espera de vibración si el robot ya estaba quieto)
+    tray_stopper.py            TrayStopper: tope de la bandeja fija, cerrado en segundo plano
     records.py                 lo que se registra de piezas, bandejas y planes
     console.py                 OperatorConsole: ventana, teclas, ayuda, barra de estado
     runner.py                  hilo de trabajo con señal de parada
@@ -182,6 +184,6 @@ tests/                         pytest sin hardware; test_architecture.py verific
 
 **Cuatro bandejas y gripper en X (2026-11-10):** con la acA1600, `escena_4_bandejas_4_pollos` (4 bandejas a 8°, 22°, 38° y -36°; 4 pechugas con distinto giro): el detector de bandejas las encuentra a ≤ 13 mm y ≤ 7° de lo medido a mano y el de pechugas, las 4 (también con ruido de sensor). La toma pone la parte ancha del gripper asimétrico hacia los lóbulos (`planning/grasp.py`) y la colocación la mantiene así hasta dejar los lóbulos hacia `lobes_toward_deg`. Cargado de punta a punta con robot simulado sobre esa foto; falta enseñar las poses y probarlo en el banco.
 
-**Bandeja fija con tope (2026-11-11):** `demo_static_tray` carga una tras otra las pechugas de la zona de toma (de izquierda a derecha, o al revés con `pick_from`) en la bandeja que detiene un tope (DO3) sobre la cinta: espera el sensor (DI1), suelta, abre el tope 3 s (`stopper_open_s`) y lo cierra; la foto siguiente se toma desde la pose de soltar, sin moverse. Los planes tienen pasos de salida digital y de espera a una entrada (`SetOutput`, `WaitForInput`), y el robot lee entradas (`digital_input`). Probado con robot simulado y una cinta simulada; falta enseñar `tray_drop` y probarlo en el banco.
+**Bandeja fija con tope (2026-11-11):** `demo_static_tray` carga una tras otra las pechugas de la zona de toma (de izquierda a derecha, o al revés con `pick_from`) en la bandeja que detiene un tope (DO2) sobre la cinta: espera el tope cerrado y el sensor (DI1), suelta, abre el tope y va por la pieza siguiente mientras la bandeja cargada sale; `TrayStopper` cierra el tope en segundo plano 2,5 s después de que el sensor deja de verla (`stopper_close_delay_s`). Al iniciar lo cierra y verifica la salida. La foto siguiente se toma desde la pose de soltar, sin moverse. Los planes tienen pasos de salida digital y de espera a una entrada o salida (`SetOutput`, `WaitForInput`, `WaitForOutput`). Probado con robot simulado y una cinta simulada; falta enseñar `tray_drop` y probarlo en el banco.
 
 **Próximas iteraciones:** límites de la celda → verificador de colocación (borde de sellado) → `flip_test` (estación de volteo) → `demo` → `teach_cell`, `summarize_run`. Después: un clasificador YOLO como alternativa, URSim y un gemelo digital como implementaciones de `Robot`, y la cinta en movimiento.

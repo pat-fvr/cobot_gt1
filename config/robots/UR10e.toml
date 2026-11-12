@@ -3,12 +3,12 @@ kind = "ur_rtde"
 ip = "150.0.24.10"
 
 # Los viajes del banco son cortos (~40 cm): sin aceleración, el robot no alcanza la velocidad pedida.
-# A 8000 mm/s² llega a 1500 mm/s en 14 cm. 2026-11-10: 1200 -> 2400 -> 5000 -> 8000.
-linear_accel_mm_s2 = 8000.0
-joint_accel_deg_s2 = 480.0           # 2026-11-10: 120 -> 240 -> 480
+# A 12000 mm/s² llega a 1500 mm/s en 9 cm. 2026-11-10: 1200 -> 2400 -> 5000 -> 8000; 2026-11-12: 12000.
+linear_accel_mm_s2 = 2400.0
+joint_accel_deg_s2 = 240.0           # 2026-11-10: 120 -> 240 -> 480; 2026-11-12: 720 (a 120°/s en 10°)
 # Frenar al apretar x: más fuerte que la aceleración, para no recorrer más al frenar que al arrancar.
-stop_decel_mm_s2 = 12000.0           # 2000 -> 4000 -> 8000 -> 12000: desde 1500 mm/s frena en ~9 cm
-stop_decel_deg_s2 = 500.0            # 115 -> 230 -> 500: desde 120°/s frena en ~14°
+stop_decel_mm_s2 = 5000.0           # 2000 -> 4000 -> 8000 -> 12000 -> 16000: desde 1500 mm/s frena en ~7 cm
+stop_decel_deg_s2 = 800.0            # 115 -> 230 -> 500 -> 800: desde 120°/s frena en ~9°
 
 # Cada cuánto se revisa un movimiento en curso (y la tecla de parada).
 poll_period_s = 0.02

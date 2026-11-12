@@ -19,15 +19,15 @@ from gt1.domain import (
     InputPort,
     MoveJoints,
     MoveLinear,
+    MoveVertical,
     OutputPort,
     Piece,
     PieceStatus,
     Plan,
     Pose,
-    SetOutput,
     TrayDetection,
-    Wait,
     WaitForInput,
+    WaitForOutput,
 )
 from gt1.planning import (
     TopDownPick,
@@ -89,7 +89,15 @@ def tool_y(pose: Pose) -> np.ndarray:
 def test_pick_opens_goes_above_descends_grips_descends_closed_and_lifts_over_the_piece_center() -> None:
     plan = TopDownPick(PICK, TABLE_Z_MM, "symmetric").plan(piece((800.0, 600.0), 0.0))
     kinds = [type(step) for step in plan.steps]
-    assert kinds == [GripperCommand, MoveLinear, MoveLinear, GripperCommand, MoveLinear, MoveLinear]
+    assert kinds == [
+        GripperCommand,
+        MoveVertical,
+        MoveLinear,
+        MoveLinear,
+        GripperCommand,
+        MoveLinear,
+        MoveLinear,
+    ]
     assert [step.action for step in plan.steps if isinstance(step, GripperCommand)] == ["release", "grip"]
     heights_mm = [move.target.position_mm[2] - TABLE_Z_MM for move in moves(plan)]
     assert heights_mm == pytest.approx([150.0, 15.0, 15.0 - 50.0, 200.0])
@@ -97,17 +105,30 @@ def test_pick_opens_goes_above_descends_grips_descends_closed_and_lifts_over_the
         assert move.target.position_mm[:2] == pytest.approx([800.0, 600.0])
 
 
-def test_pick_passes_in_a_curve_over_the_piece_and_at_the_top_of_the_lift_but_stops_to_grip() -> None:
+def test_pick_first_moves_vertically_to_the_approach_height_and_travels_level_to_above_the_piece() -> None:
+    """En el banco (2026-11-12) iba en diagonal desde donde estaba hasta sobre la pieza."""
+    plan = TopDownPick(PICK, TABLE_Z_MM, "symmetric").plan(piece((800.0, 600.0), 0.0))
+    vertical, approach = plan.steps[1], plan.steps[2]
+    assert isinstance(vertical, MoveVertical)
+    assert isinstance(approach, MoveLinear)
+    assert vertical.z_mm == pytest.approx(TABLE_Z_MM + 150.0)
+    assert approach.target.position_mm[2] == pytest.approx(vertical.z_mm)
+
+
+def test_pick_stops_above_the_piece_and_to_grip_and_passes_in_a_curve_only_at_the_top_of_the_lift() -> None:
+    """En el banco (2026-11-12) empezaba a bajar antes de quedar sobre la pieza: llega y recién baja."""
     plan = TopDownPick(PICK, TABLE_Z_MM, "symmetric").plan(piece((800.0, 600.0), 0.0))
     approach, grasp, settle, lift = moves(plan)
-    assert approach.blend_radius_mm == lift.blend_radius_mm == 30.0
+    assert not approach.blends_into_next
     assert not grasp.blends_into_next
     assert not settle.blends_into_next
+    assert lift.blend_radius_mm == 30.0
 
 
-def test_pick_config_rejects_a_blend_longer_than_half_the_descent() -> None:
+def test_pick_config_rejects_a_blend_longer_than_half_the_lift() -> None:
+    # La subida va de 15 - 50 = -35 mm a 200 mm: 235 mm.
     with pytest.raises(ValueError, match="blend_radius_mm"):
-        TopDownPickConfig(**{**PICK.model_dump(), "blend_radius_mm": 70.0})
+        TopDownPickConfig(**{**PICK.model_dump(), "blend_radius_mm": 120.0})
 
 
 def test_pick_without_descent_after_the_grip_lifts_right_away() -> None:
@@ -262,19 +283,17 @@ def test_clear_view_does_not_move_a_robot_already_at_the_clear_pose_even_below_t
     assert clear_from(-100.0, almost_there).steps == ()
 
 
-def test_the_tray_station_releases_only_with_a_tray_and_then_opens_the_stopper_for_a_while() -> None:
+def test_the_tray_station_releases_once_the_stopper_is_closed_and_a_tray_is_against_it() -> None:
+    """El tope lo maneja TrayStopper en segundo plano; el plan solo espera que esté cerrado (salió la bandeja
+    anterior) y que llegue la siguiente."""
     station = TrayStationSettings(
-        stopper=OutputChannel(port=OutputPort.STANDARD, number=3),
+        stopper=OutputChannel(port=OutputPort.STANDARD, number=2),
         tray_sensor=InputChannel(port=InputPort.STANDARD, number=1),
-        stopper_open_s=3.0,
+        stopper_close_delay_s=2.5,
     )
-    close, wait_tray, release, open_stopper, let_through, close_again = tray_station_drop_plan(station).steps
+    wait_closed, wait_tray, release = tray_station_drop_plan(station).steps
 
-    stopper = station.stopper.digital_output()
-    assert close == SetOutput(stopper, True, close.description)
+    assert wait_closed == WaitForOutput(station.stopper.digital_output(), True, wait_closed.description)
     assert wait_tray == WaitForInput(station.tray_sensor.digital_input(), True, wait_tray.description)
     assert isinstance(release, GripperCommand)
     assert release.action == "release"
-    assert open_stopper == SetOutput(stopper, False, open_stopper.description)
-    assert let_through == Wait(3.0, let_through.description)
-    assert close_again == SetOutput(stopper, True, close_again.description)

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from gt1 import paths
+from gt1.calibration import CalibrationStore, HomographyProjector
 from gt1.config import ConfigError, ConfigRepository, save_robot_pose, taught_pose, write_robot_poses
 
 PROGRAM_SCHEMAS = {
@@ -184,3 +185,23 @@ def test_a_saved_pose_is_read_back_rounded(tmp_path: Path) -> None:
 def test_a_pose_needs_six_joints() -> None:
     with pytest.raises(ValueError, match="joints_deg"):
         taught_pose((0.0,) * 5, (0.0, 0.0, 0.0), datetime(2026, 11, 10))
+
+
+# Diferencia máxima entre la mesa de cell.toml y el plano donde se calibró la cámara: más que el espesor de
+# las placas (3 y 10 mm) y el desnivel de la Cognex (~7 mm); otra superficie (una plataforma) da mucho más.
+TABLE_TO_CALIBRATION_PLANE_MAX_MM = 20.0
+
+
+def test_the_table_is_where_the_mounted_camera_was_calibrated() -> None:
+    """2026-11-12: se recalibró con la placa sobre una plataforma ~100 mm más alta que la mesa, table_z_mm
+    quedó en la mesa, y la toma viajó bajo la superficie de la plataforma y chocó."""
+    repository = ConfigRepository(paths.CONFIG_DIR)
+    camera_id = repository.camera(repository.station().camera).camera_id
+    projector = CalibrationStore(paths.CALIBRATION_DIR, camera_id).load_projector("homography")
+    assert isinstance(projector, HomographyProjector)
+    table_z_mm = repository.cell().table_z_mm
+    assert abs(projector.plane_z_mm - table_z_mm) <= TABLE_TO_CALIBRATION_PLANE_MAX_MM, (
+        f"{camera_id} se calibró sobre Z={projector.plane_z_mm:.1f} mm y cell.toml tiene table_z_mm = "
+        f"{table_z_mm}: poner en table_z_mm la mesa que informó calibrate (superficie de la placa menos su "
+        "espesor)."
+    )

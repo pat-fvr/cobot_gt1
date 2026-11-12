@@ -608,9 +608,15 @@ FaceClassifierConfig = Annotated[
 class TopDownPickConfig(StrictModel):
     """Toma desde arriba: el gripper baja vertical al centro de la pieza, con su eje Y a lo largo de ella."""
 
-    travel_speed_mm_s: float = Field(gt=0, description="Velocidad hasta quedar sobre la pieza.")
+    travel_speed_mm_s: float = Field(
+        gt=0, description="Velocidad hasta quedar sobre la pieza, a la altura de llegada."
+    )
     approach_height_mm: float = Field(
-        gt=0, description="Altura de la punta (TCP) sobre la mesa al llegar sobre la pieza, antes de bajar."
+        gt=0,
+        description=(
+            "Altura de la punta (TCP) sobre la mesa a la que va primero en vertical, desde donde esté, y "
+            "a la que viaja hasta quedar sobre la pieza, antes de bajar."
+        ),
     )
     grasp_height_mm: float = Field(ge=0, description="Altura de la punta sobre la mesa al cerrar el gripper.")
     after_grip_descent_mm: float = Field(
@@ -622,13 +628,19 @@ class TopDownPickConfig(StrictModel):
         ),
     )
     lift_height_mm: float = Field(gt=0, description="Altura de la punta sobre la mesa con la pieza tomada.")
-    descend_speed_mm_s: float = Field(gt=0, description="Velocidad al bajar a la pieza y al subir con ella.")
+    descend_speed_mm_s: float = Field(
+        gt=0,
+        description=(
+            "Velocidad de los movimientos verticales: a la altura de llegada, al bajar a la pieza y al subir "
+            "con ella."
+        ),
+    )
     blend_radius_mm: float = Field(
         ge=0,
         description=(
-            "Radio con que el robot pasa en curva, sin detenerse, por el punto sobre la pieza (de llegar a "
-            "bajar) y por el punto de subida (de subir a ir a la bandeja). 0: se detiene en ellos. La curva "
-            "empieza a bajar antes de quedar sobre la pieza, y a avanzar antes de terminar de subir."
+            "Radio con que el robot pasa en curva, sin detenerse, por el punto de arriba de la subida (de "
+            "subir con la pieza a ir a la bandeja): empieza a avanzar antes de terminar de subir. 0: se "
+            "detiene ahí. Sobre la pieza se detiene siempre antes de bajar."
         ),
     )
 
@@ -639,16 +651,14 @@ class TopDownPickConfig(StrictModel):
         return self
 
     @model_validator(mode="after")
-    def _blend_fits_the_vertical_moves(self) -> Self:
+    def _blend_fits_the_lift(self) -> Self:
         """El controlador rechaza una curva más larga que el tramo; con la mitad queda margen."""
-        descent_mm = self.approach_height_mm - self.grasp_height_mm
         lowest_mm = self.grasp_height_mm - self.after_grip_descent_mm
         rise_mm = self.lift_height_mm - lowest_mm
-        if 2 * self.blend_radius_mm > min(descent_mm, rise_mm):
+        if 2 * self.blend_radius_mm > rise_mm:
             raise ValueError(
-                f"blend_radius_mm = {self.blend_radius_mm} no cabe en los tramos verticales "
-                f"(bajada {descent_mm:.0f} mm, subida {rise_mm:.0f} mm): debe ser a lo más la mitad del "
-                "más corto."
+                f"blend_radius_mm = {self.blend_radius_mm} no cabe en la subida con la pieza "
+                f"({rise_mm:.0f} mm): debe ser a lo más la mitad."
             )
         return self
 
@@ -772,10 +782,11 @@ class TrayStationSettings(StrictModel):
         "pasar)."
     )
     tray_sensor: InputChannel = Field(
-        description="Entrada del sensor de bandeja: 1 con una bandeja en el tope."
+        description="Entrada del sensor de bandeja: 1 con una bandeja en el tope. Después de soltar, el tope "
+        "se abre y se vuelve a cerrar cuando el sensor pasa a 0 (salió la bandeja cargada)."
     )
-    stopper_open_s: float = Field(
-        gt=0,
-        description="Tiempo que el tope queda abierto después de soltar la pieza, para que salga la bandeja "
-        "cargada; después se cierra para la siguiente.",
+    stopper_close_delay_s: float = Field(
+        ge=0,
+        description="Cuánto después de que el sensor deja de ver la bandeja cargada se cierra el tope: el "
+        "sensor la pierde antes de que termine de pasar sobre él.",
     )

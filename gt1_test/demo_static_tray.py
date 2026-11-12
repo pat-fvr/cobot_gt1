@@ -1,21 +1,26 @@
-"""demo_static_tray: el robot carga, una tras otra, las pechugas de la zona de toma en la bandeja fija.
+"""demo_static_tray: el robot carga, una tras otra, las pechugas que ve la cámara en la bandeja fija.
 
 La bandeja llega por una cinta y la detiene un tope (``stopper`` de
 ``[settings.tray_station]``: 1 cerrado, 0 abierto); un sensor (``tray_sensor``)
-dice que llegó. El robot suelta la pieza desde una pose fija sobre ella
-(``pose`` de ``[settings.clear_view]``, enseñada con freedrive), que queda
-fuera de la vista de la cámara: desde ahí también captura, sin moverse. No hay
-detector de bandejas: la bandeja está siempre en el mismo lugar.
+dice que llegó. Al iniciar, el programa cierra el tope y verifica que la
+salida quedó en 1, o no arranca. El robot suelta la pieza desde una pose fija
+sobre ella (``pose`` de ``[settings.clear_view]``, enseñada con freedrive), que
+queda fuera de la vista de la cámara: desde ahí también captura, sin moverse.
+No hay detector de bandejas: la bandeja está siempre en el mismo lugar.
 
 Cada carga:
     1. Captura desde la pose de soltar y elige la pechuga tomable de más a la izquierda en la
        imagen (``pick_from = "right"``: la de más a la derecha). La izquierda y la derecha se miden
        a lo largo de ``left_to_right_deg``, en la base.
     2. La toma y la lleva a la pose de soltar.
-    3. Con el tope cerrado, espera a que el sensor vea la bandeja y suelta la pieza.
-    4. Abre el tope durante ``stopper_open_s`` para que salga la bandeja cargada y lo cierra.
-Y vuelve a 1, hasta que no quedan pechugas tomables. Las piezas en el borde de la
-zona o en grupo no se toman.
+    3. Espera que el tope esté cerrado (que salió la bandeja anterior) y que el sensor vea la
+       bandeja, y suelta la pieza.
+    4. Abre el tope para que salga la bandeja cargada y vuelve a 1 sin esperarla: el tope se cierra
+       en segundo plano (``TrayStopper``) ``stopper_close_delay_s`` después de que el sensor deja de
+       verla, mientras el robot captura y va por la pieza siguiente.
+Y así, hasta que no quedan pechugas tomables. Las pechugas se buscan en
+``pick_zone``: una zona de cell.toml o toda la imagen (``full_view``). Las piezas
+en el borde de la zona o en grupo no se toman.
 
 Protocolo:
     1. Pechugas con la piel arriba, separadas, en la zona de toma; la cinta con bandejas vacías.
@@ -39,7 +44,14 @@ from typing import Literal
 from pydantic import Field
 
 from gt1.calibration import PixelProjector
-from gt1.config.schemas import ClearViewSettings, StrictModel, TrayStationSettings, WideSide, ZoneName
+from gt1.config.schemas import (
+    ClearViewSettings,
+    StrictModel,
+    TopDownPickConfig,
+    TrayStationSettings,
+    ViewZoneName,
+    WideSide,
+)
 from gt1.domain import GripperCommand, Piece, Plan, joined_plan
 from gt1.domain.frame import Image
 from gt1.geometry import position_along_mm
@@ -62,6 +74,7 @@ from gt1.runtime.program import Program, run_program
 from gt1.runtime.records import execution_record, piece_record
 from gt1.runtime.run_log import JsonValue, RunLog
 from gt1.runtime.station import StationHardware
+from gt1.runtime.tray_stopper import TrayStopper
 
 PROGRAM = "demo_static_tray"
 logger = logging.getLogger(__name__)
@@ -79,11 +92,12 @@ class Components(StrictModel):
     robot: str
     gripper: str
     piece_detector: str
-    pick_strategy: str
 
 
 class Settings(StrictModel):
-    pick_zone: ZoneName = Field(description="Zona donde se buscan las pechugas.")
+    pick_zone: ViewZoneName = Field(
+        description='Zona donde se buscan las pechugas: una de cell.toml, o "full_view" (toda la imagen).'
+    )
     left_to_right_deg: float = Field(
         description="Dirección en la base (ángulo respecto del eje X) que en la imagen va de izquierda a "
         "derecha: a lo largo de ella se elige la pieza de más a la izquierda o a la derecha."
@@ -91,6 +105,10 @@ class Settings(StrictModel):
     pick_from: PickFrom = Field(
         description='"left": se toma primero la pieza de más a la izquierda en la imagen; "right": la de '
         "más a la derecha."
+    )
+    pick: TopDownPickConfig = Field(
+        description="La toma desde arriba: alturas y velocidades, en este archivo y no en config/strategies/ "
+        "para verlas junto al resto de la prueba (sobre la plataforma, con la bandeja abajo)."
     )
     clear_view: ClearViewSettings = Field(
         description="Su pose es la de soltar sobre la bandeja fija: fuera de la vista, desde ella se captura."
@@ -119,6 +137,7 @@ class StaticTrayDemo:
         pick: PickStrategy,
         wide_side: WideSide,
         drop: Plan,
+        stopper: TrayStopper,
         perception: ScenePerception,
         projector: PixelProjector,
         settings: Settings,
@@ -131,6 +150,7 @@ class StaticTrayDemo:
         self._pick = pick
         self._wide_side: WideSide = wide_side  # sin anotar, pyright lo ensancha a str
         self._drop = drop
+        self._stopper = stopper
         self._perception = perception
         self._projector = projector
         self._settings = settings
@@ -207,7 +227,10 @@ class StaticTrayDemo:
         sensor = self._settings.tray_station.tray_sensor.digital_input().describe()
         self._console.set_status(f"Pieza {number}: a la bandeja; espera la bandeja en {sensor}.")
         plan = joined_plan("llevar y soltar", (self._clear_view.plan_from_here(), self._drop))
-        return self._executor.execute(plan, stop)
+        execution = self._executor.execute(plan, stop)
+        if execution.completed:
+            self._stopper.let_loaded_tray_out()  # sale mientras el robot captura y va por la siguiente
+        return execution
 
     def _choose(self, scene: Scene) -> Piece | None:
         return first_piece(scene, self._settings.left_to_right_deg, self._settings.pick_from)
@@ -242,7 +265,11 @@ def demo_static_tray(program: Program[DemoStaticTrayConfig]) -> None:
         repository, camera_config, components.piece_detector, None, settings.pick_zone
     )
 
-    with build_camera(camera_config) as camera, build_robot(repository.robot(components.robot)) as robot:
+    with (
+        build_camera(camera_config) as camera,
+        build_robot(repository.robot(components.robot)) as robot,
+        TrayStopper(robot, settings.tray_station) as stopper,
+    ):
         gripper = build_gripper(components.gripper, gripper_config, robot)
         program.confirm_station(
             StationHardware(
@@ -254,6 +281,7 @@ def demo_static_tray(program: Program[DemoStaticTrayConfig]) -> None:
                 tray_name=None,
             )
         )
+        stopper.close_and_verify()
         console = OperatorConsole(f"GT1 - {PROGRAM}")
         executor = PlanExecutor(robot, gripper)
         demo = StaticTrayDemo(
@@ -267,11 +295,10 @@ def demo_static_tray(program: Program[DemoStaticTrayConfig]) -> None:
                 report=console.set_status,
             ),
             executor=executor,
-            pick=build_pick_strategy(
-                repository.pick_strategy(components.pick_strategy), cell, gripper_config
-            ),
+            pick=build_pick_strategy(settings.pick, cell, gripper_config),
             wide_side=gripper_wide_side(gripper_config),
             drop=tray_station_drop_plan(settings.tray_station),
+            stopper=stopper,
             perception=perception,
             projector=build_projector(camera_config),
             settings=settings,

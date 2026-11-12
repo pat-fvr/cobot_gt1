@@ -62,7 +62,7 @@ Listo cuando: pyright no informa casos faltantes en el `match`, el archivo de ej
 ## 5. Robot y seguridad
 
 - Solo `hardware/robot/ur_rtde.py` habla con ur_rtde y solo `hardware/camera/mvs.py` con el SDK MVS (son los únicos archivos con `# pyright: basic`).
-- **Un hilo a la vez**: el hardware se usa desde el hilo de trabajo de `OperatorConsole` (o desde el principal mientras no hay trabajo en curso). Para detener, otro hilo activa la señal `stop`; los movimientos la revisan y frenan solos. La tecla `x` responde siempre.
+- **Un hilo a la vez**: el hardware se usa desde el hilo de trabajo de `OperatorConsole` (o desde el principal mientras no hay trabajo en curso). Para detener, otro hilo activa la señal `stop`; los movimientos la revisan y frenan solos. La tecla `x` responde siempre. La única excepción es `gt1.runtime.tray_stopper`: cierra el tope de la bandeja fija en su propio hilo mientras el robot va por la pieza siguiente; solo usa E/S (nunca mueve el robot) y el driver serializa las E/S con un lock.
 - Lo lento (capturar, mover, calcular) va en un trabajo (`bind_job`); `bind_action` es solo para lo instantáneo.
 - Antes de usar el robot: `confirm_station` carga el TCP y la carga del gripper desde su archivo y el robot los lee de vuelta. El archivo del gripper es la única fuente del TCP y del payload.
 - Agarrar y soltar con el robot quieto. Ante un error del robot: detener, dejar el ciclo en un estado seguro, mostrar el motivo y registrar; el paso siguiente arranca solo si el anterior terminó.

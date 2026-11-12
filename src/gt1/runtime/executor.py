@@ -10,36 +10,45 @@ con el robot detenido y el gripper como estaba (si tenía la pieza, la sigue
 teniendo: soltarla a medio camino es peor). El resultado dice hasta dónde
 llegó y por qué, para mostrarlo y registrarlo.
 
-Las esperas (``Wait`` y ``WaitForInput``) revisan la señal de parada: la tecla
-``x`` corta también la espera a que llegue una bandeja.
+Las esperas (``Wait``, ``WaitForInput`` y ``WaitForOutput``) revisan la señal de
+parada: la tecla ``x`` corta también la espera a que llegue una bandeja.
+
+``still_since_s`` dice desde cuándo el robot está quieto (después del último
+movimiento que hizo el ejecutor): una captura no repite la espera de vibración
+si el robot ya lleva ese tiempo detenido.
 """
 
 from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
 from gt1.domain import (
-    DigitalInput,
     GripperCommand,
     MoveJoints,
     MoveLinear,
+    MoveVertical,
     Plan,
     PlanStep,
+    Pose,
     SetOutput,
     Wait,
     WaitForInput,
+    WaitForOutput,
 )
 from gt1.hardware.gripper import Gripper
 from gt1.hardware.robot import MotionResult, Robot
 
 logger = logging.getLogger(__name__)
 
-# Cada cuánto se lee una entrada mientras se espera: muy por debajo de lo que tarda una bandeja en llegar.
-INPUT_POLL_S = 0.02
+# Cada cuánto se lee una entrada o salida mientras se espera: muy por debajo de lo que tarda una bandeja en
+# llegar.
+IO_POLL_S = 0.02
+MOTION_STEPS = (MoveLinear, MoveVertical, MoveJoints)
 
 
 class PlanOutcome(StrEnum):
@@ -70,6 +79,12 @@ class PlanExecutor:
     def __init__(self, robot: Robot, gripper: Gripper) -> None:
         self._robot = robot
         self._gripper = gripper
+        self._still_since_s: float | None = None
+
+    @property
+    def still_since_s(self) -> float | None:
+        """Desde cuándo (``time.monotonic()``) está quieto el robot; None si este ejecutor no lo movió."""
+        return self._still_since_s
 
     def execute(self, plan: Plan, stop: threading.Event) -> PlanExecution:
         self._check_gripper_actions(plan)
@@ -81,7 +96,10 @@ class PlanExecutor:
             group = blended_group(plan.steps, index)
             try:
                 result = self._run_group(group, stop)
+                if any(isinstance(step, MOTION_STEPS) for step in group):
+                    self._still_since_s = time.monotonic()
             except RuntimeError as error:
+                self._still_since_s = None  # no se sabe cómo quedó
                 logger.error("Plan '%s', paso '%s': %s", plan.name, group[0].description, error)
                 return PlanExecution(plan, PlanOutcome.FAILED, index, str(error))
             if result == MotionResult.STOPPED:
@@ -110,8 +128,8 @@ class PlanExecutor:
     def _run(self, step: PlanStep, stop: threading.Event) -> MotionResult:
         logger.info("Paso: %s", step.description)
         match step:
-            case MoveLinear():
-                return self._robot.move_linear(step.target, step.speed_mm_s, stop)
+            case MoveLinear() | MoveVertical():
+                return self._robot.move_linear(self._linear_target(step), step.speed_mm_s, stop)
             case MoveJoints():
                 return self._robot.move_joints(step.joints_deg, step.speed_deg_s, stop)
             case GripperCommand():
@@ -122,12 +140,25 @@ class PlanExecutor:
             case SetOutput():
                 self._robot.set_digital_output(step.output, step.value)
                 return MotionResult.COMPLETED
-            case WaitForInput():
-                return self._wait_for_input(step.sensor, step.value, stop)
+            case WaitForInput() | WaitForOutput():
+                return self._wait_until(lambda: self._signal(step) == step.value, stop)
 
-    def _wait_for_input(self, sensor: DigitalInput, value: bool, stop: threading.Event) -> MotionResult:
-        while self._robot.digital_input(sensor) != value:
-            if stop.wait(INPUT_POLL_S):
+    def _signal(self, step: WaitForInput | WaitForOutput) -> bool:
+        """Lo que vale ahora la entrada o la salida que espera el paso."""
+        if isinstance(step, WaitForInput):
+            return self._robot.digital_input(step.sensor)
+        return self._robot.digital_output(step.output)
+
+    def _linear_target(self, step: MoveLinear | MoveVertical) -> Pose:
+        """El destino del movimiento recto; el de uno vertical sale de donde está el robot ahora."""
+        if isinstance(step, MoveLinear):
+            return step.target
+        return self._robot.tcp_pose().at_height(step.z_mm)
+
+    @staticmethod
+    def _wait_until(condition: Callable[[], bool], stop: threading.Event) -> MotionResult:
+        while not condition():
+            if stop.wait(IO_POLL_S):
                 return MotionResult.STOPPED
         return MotionResult.COMPLETED
 

@@ -1,9 +1,12 @@
 """Toma desde arriba: el gripper baja vertical sobre el centro de la pieza y la toma.
 
-Después de cerrar puede bajar un poco más (``after_grip_descent_mm``): los
-dedos de un soft gripper se recogen al cerrar, y bajar los mete bajo la pieza.
-Los puntos sobre la pieza (al llegar y al subir) se pasan en curva con
-``blend_radius_mm``; el robot se detiene al tomar.
+Primero va en vertical, desde donde esté, a la altura de llegada
+(``approach_height_mm``), y a esa altura viaja hasta quedar sobre la pieza: no
+cruza en diagonal sobre la bandeja ni sobre otras piezas. Ahí se detiene y
+recién baja. Después de cerrar puede bajar un poco más
+(``after_grip_descent_mm``): los dedos de un soft gripper se recogen al cerrar,
+y bajar los mete bajo la pieza. Solo el punto de arriba de la subida se pasa en
+curva (``blend_radius_mm``), hacia el viaje a la bandeja.
 
 El eje Y de la herramienta se gira a la línea central de la pieza, con la
 parte ancha de un gripper asimétrico hacia los lóbulos (``grasp.py``), para
@@ -14,7 +17,7 @@ desde la pieza: la cámara ve el contorno, no el espesor.
 from __future__ import annotations
 
 from gt1.config.schemas import TopDownPickConfig, WideSide
-from gt1.domain import GripperCommand, MoveLinear, Piece, Plan, PlanStep, Pose
+from gt1.domain import GripperCommand, MoveLinear, MoveVertical, Piece, Plan, PlanStep, Pose
 from gt1.geometry import tool_pointing_down
 
 from .base import PickStrategy
@@ -31,11 +34,13 @@ class TopDownPick(PickStrategy):
         config = self._config
         steps: list[PlanStep] = [
             GripperCommand("release", "abrir el gripper antes de bajar"),
+            MoveVertical(
+                self._table_z_mm + config.approach_height_mm,
+                config.descend_speed_mm_s,
+                "en vertical a la altura de llegada",
+            ),
             MoveLinear(
-                self._above(piece, config.approach_height_mm),
-                config.travel_speed_mm_s,
-                "sobre la pieza",
-                blend_radius_mm=config.blend_radius_mm,
+                self._above(piece, config.approach_height_mm), config.travel_speed_mm_s, "sobre la pieza"
             ),
             MoveLinear(
                 self._above(piece, config.grasp_height_mm), config.descend_speed_mm_s, "bajar a la pieza"

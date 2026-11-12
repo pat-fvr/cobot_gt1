@@ -56,6 +56,8 @@ class UrRtdeRobot(Robot):
         self._io: Any = None
         self._last_motion_was_linear = True
         self._freedrive = False
+        # Las E/S se usan también desde el hilo del tope (TrayStopper): una a la vez.
+        self._io_lock = threading.Lock()
 
     @property
     def is_simulated(self) -> bool:
@@ -132,17 +134,21 @@ class UrRtdeRobot(Robot):
 
     def set_digital_output(self, output: DigitalOutput, value: bool) -> None:
         setter = getattr(self._require_io(), _OUTPUT_SETTER[output.port])
-        if not setter(output.number, value):
+        with self._io_lock:
+            accepted = setter(output.number, value)
+        if not accepted:
             raise RuntimeError(f"El robot no aceptó cambiar la salida {output.describe()}.")
         logger.info("%s -> %s", output.describe(), "1" if value else "0")
 
     def digital_output(self, output: DigitalOutput) -> bool:
         bit = _OUTPUT_FIRST_BIT[output.port] + output.number
-        return bool(self._require_receive().getDigitalOutState(bit))
+        with self._io_lock:
+            return bool(self._require_receive().getDigitalOutState(bit))
 
     def digital_input(self, sensor: DigitalInput) -> bool:
         bit = _INPUT_FIRST_BIT[sensor.port] + sensor.number
-        return bool(self._require_receive().getDigitalInState(bit))
+        with self._io_lock:
+            return bool(self._require_receive().getDigitalInState(bit))
 
     def apply_tool(self, tool: ToolSettings) -> None:
         control = self._require_control()

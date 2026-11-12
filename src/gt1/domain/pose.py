@@ -35,6 +35,12 @@ class Pose:
     def from_matrix(cls, transform: FloatArray) -> Pose:
         return cls(position_mm=transform[:3, 3].copy(), rotation=transform[:3, :3].copy())
 
+    def at_height(self, z_mm: float) -> Pose:
+        """La misma pose, con la posición en la vertical a la altura ``z_mm``."""
+        position_mm = self.position_mm.copy()
+        position_mm[2] = z_mm
+        return Pose(position_mm, self.rotation)
+
     def matrix(self) -> FloatArray:
         """Transformación 4x4 ``padre_from_esta``."""
         return homogeneous(self.rotation, self.position_mm)
