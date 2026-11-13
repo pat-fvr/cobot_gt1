@@ -28,6 +28,70 @@ agregar esa carpeta al `PATH` para usar `uv` directamente.
 
 Para desarrollar con VS Code, elegir el intérprete `.venv\Scripts\python.exe`.
 
+### Instalación con un agente (Claude Code o Codex)
+
+Basta con darle el link del repositorio a un agente de código: lo clona, lee esta sección y deja la instalación verificada.
+
+1. **Instalar el agente** (una vez por equipo), en PowerShell:
+
+   | Agente | Instalación | Documentación |
+   |---|---|---|
+   | Claude Code | `irm https://claude.ai/install.ps1 \| iex` (requiere [Git para Windows](https://git-scm.com/download/win)) | [docs.anthropic.com/claude-code](https://docs.anthropic.com/en/docs/claude-code/setup) |
+   | Codex | `npm install -g @openai/codex` (requiere [Node.js](https://nodejs.org)) | [github.com/openai/codex](https://github.com/openai/codex) |
+
+   Los dos tienen también extensión para VS Code. Al abrirlo por primera vez, iniciar sesión con la cuenta del equipo.
+
+2. **Abrir el agente en la carpeta donde va a quedar el proyecto** (p. ej. `Documentos`) y darle el link:
+
+   ```
+   cd $HOME\Documents
+   claude          # o: codex
+   ```
+
+   > Instala https://github.com/pat-fvr/cobot_gt1 en este equipo siguiendo su README.
+
+   El agente pide permiso antes de cada comando: leer qué va a correr antes de aceptar. Si el repositorio es privado, la cuenta de GitHub del equipo necesita acceso a `pat-fvr/cobot_gt1`.
+
+3. **Instalar a mano lo que el agente no puede**: el SDK MVS (instalador de Hikrobot, con permisos de administrador). Después, cerrar y abrir la terminal para que tome `MVCAM_COMMON_RUNENV`. Y configurar la [red del banco](#red-del-banco).
+
+**Para el agente que instala:**
+
+1. Clonar el repositorio en la carpeta actual y trabajar dentro de `cobot_gt1/`; leer [AGENTS.md](AGENTS.md).
+2. Revisar que `uv` responda; si no, instalarlo con el instalador oficial (`irm https://astral.sh/uv/install.ps1 | iex`) y abrir una terminal nueva.
+3. Correr `uv sync` y después los cuatro chequeos de la sección 11 de AGENTS.md (`ruff check`, `ruff format --check`, `pyright`, `pytest`).
+4. Revisar si está el SDK MVS (variable de entorno `MVCAM_COMMON_RUNENV`). Si falta, no instalarlo: avisar que hay que bajarlo de Hikrobot e instalarlo a mano.
+5. Revisar con `ipconfig` si alguna tarjeta de red tiene la IP del PC de la [red del banco](#red-del-banco). Si ninguna la tiene, no cambiar la red: avisar cómo configurarla.
+6. No conectar la cámara ni el robot, ni correr programas de `gt1_test/` o `gt1_tools/`.
+7. Terminar con un resumen: qué quedó listo, qué chequeo falló (con su salida) y qué falta hacer a mano.
+
+Listo cuando `uv run pytest` pasa sin errores. Con el hardware conectado, seguir con el paso 1 del [flujo de trabajo en el banco](#flujo-de-trabajo-en-el-banco).
+
+**En el banco, el agente no maneja el robot.** Los programas de `gt1_test/` y `gt1_tools/` los corre una persona frente a la celda, con la parada de emergencia al alcance: el agente sirve para instalar, revisar registros (`runs/`), ajustar `config/` y cambiar el código, no para lanzar movimientos.
+
+## Red del banco
+
+El PC, el robot y la cámara van en una red propia, sin puerta de enlace (sin internet por esa tarjeta).
+
+| Equipo | IP | Dónde se configura |
+|---|---|---|
+| PC | `150.0.24.40`, máscara `255.255.0.0`, sin puerta de enlace | Tarjeta de red conectada al banco (abajo) |
+| UR10e | `150.0.24.10` | Consola del robot; el programa la lee de `ip` en `config/robots/UR10e.toml` |
+| Basler acA1600 (la que se usa) | `150.0.24.23` | Cliente MVS; el programa la lee de `ip` en `config/cameras/basler_acA1600.toml` |
+| Basler scA1390 (la anterior) | `150.0.24.20` | Cliente MVS; el programa la lee de `ip` en `config/cameras/basler_scA1390.toml` |
+
+Si se cambia la IP de un equipo, se cambia también en su archivo de `config/`.
+
+**Configurar el PC** (con permisos de administrador): Configuración → Red e Internet → Configuración de red avanzada → Más opciones del adaptador de red → clic derecho en la tarjeta conectada al banco → Propiedades → Protocolo de Internet versión 4 (TCP/IPv4) → Propiedades → *Usar la siguiente dirección IP*: IP `150.0.24.40`, máscara `255.255.0.0`, puerta de enlace vacía.
+
+**Verificar** antes de correr un programa:
+
+```
+ping 150.0.24.10    # robot
+ping 150.0.24.23    # cámara
+```
+
+Si el robot no responde, revisar el cable y su IP en la consola. Si la cámara no responde o el visor (`gt1_tools/camera_viewer.py`) no la encuentra, abrir el cliente MVS: muestra las cámaras de la red con su IP y permite cambiarla.
+
 ## Flujo de trabajo en el banco
 
 | Paso | Programa | Resultado |
